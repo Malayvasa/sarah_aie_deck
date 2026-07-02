@@ -134,11 +134,13 @@ So MCP gave agents a door into every app. But it left them standing in a thousan
 	},
 	debugDemo: {
 		section: "18 · Demo · Debugging from Slack",
-		script: `Let me show you the exact bug report from earlier — *"hey i get an error when i search for '(prod)'"* — how I solve this in 2026.
+		script: `Let me show you the exact bug report from earlier — *"hey i get an error when i search for '(prod)'"* — a demo of how I would solve this in 2026.
 
-I can just copy the link to the message in Slack.
+I would have my Claude connected to the Composio MCP.
 
-Claude uses **Composio Search** to state the task it wants to accomplish, and Composio returns the correct tools it needs and how to use them.
+So what I did here is I just copied and pasted the link to the message from Slack, asked it to use Sentry & Datadog to find the root cause & create a draft PR with the fix — nice and simple.
+
+The first thing it does is it calls the **Composio Search** tool to state the task it wants to accomplish — in this case it states three: it wants to fetch Slack messages, search Sentry issues, and search Datadog logs. Composio returns the correct tools it needs with a plan on how to use them — for example, for Slack it recommends the agent should first find the channel ID it's trying to pull from before it attempts to pull the message.
 
 Now, armed with all the context it needs, Claude begins pulling from data sources in parallel — Datadog, Sentry, Posthog, and scanning the codebase.
 
@@ -146,11 +148,11 @@ Then, once it identifies the root cause, it creates a PR with the fix in **less 
 
 I did not have to build a workflow or write a skill to teach it how to do this. This is literally just Claude using Composio's MCP.
 
-It has become so much easier to do things through Composio that opening up Claude is muscle memory, and some apps I used to open every day are slowly becoming unfamiliar to me. But why? What makes this so different from the traditional MCP experience?`,
+It has become so much easier to do things through Composio that opening up Claude is muscle memory, and some apps I used to open every day are slowly becoming unfamiliar to me.`,
 	},
 	nativeConnectorEvals: {
 		section: "18b · The eval numbers",
-		script: `This impact is measurable. These are some early, unreleased results comparing Composio against each app's own native MCP listed in the Claude marketplace — same tasks, same model.
+		script: `The impact of designing for agents is measureable. These are some early, unreleased results comparing Composio against each app's own native MCP listed in the Claude marketplace — same tasks, same model.
 
 **But why? Why is this experience so much better than the native MCPs?**`,
 	},
@@ -161,12 +163,24 @@ It has become so much easier to do things through Composio that opening up Claud
 We translate messy, sparsely documented, ever-changing APIs from the apps you live in every day into something agents love to use. We build on top of MCP, CLI and native tools, to deliver a cohesive, unified and excellent experience for your agents that allows them to perform complex operations across these apps seamlessly.`,
 	},
 	dataVizDemo: {
-		section: "20 · Demo · Retention across two apps",
+		section: "20 · Demo · Onboarding & toolkit usage across two apps",
 		script: `Let me show you what I mean.
 
-So let's say I want to do some data digging and visualize our retention rate. Our signups exist in Posthog, but our tool calls exist in Metabase. I can simply ask for a 5-by-5 weekly retention rate grid showing day 1 through day 5 retention for Composio For You. It writes code to orchestrate batch tool calls across both applications to produce a single cohesive response.
+So let's say I want to dig into some user data and see a distribution of what "vertical" my users select during onboarding. I can simply ask Claude for it. Again it will run the Composio Search tool, write and execute the query in Posthog, nice and simple.
 
-Workbench becomes even more powerful in long-running and complex tasks.`,
+But now, what if I wanted to see which apps (we call them toolkits) are the most popular amongst those who selected Ecommerce. Well, the tool calling data exists in Metabase. Let's see if Claude can figure out how to query large amounts of data across these two platforms.
+
+Once again it uses Composio Search, it makes some queries to find the correct project in Metabase, to get the database schema, to sample some data and get a feel for how things are structured.
+
+Then, it queries the user IDs of those who selected Ecommerce from Posthog and saves the results without loading the full result into its context.
+
+Then, it uses the Composio Sandbox to write some code to dynamically generate an SQL query with a regex string to search for those user IDs — again without loading the entire thing into its context.
+
+Then it executes, and BAM.
+
+We can see the more popular toolkits amongst this user persona in less than a few minutes, with data pulled from both Posthog and Metabase.
+
+If you want to play with the live version, come find me or go to the Composio booth.`,
 	},
 	axIsNewUx: {
 		section: "21 · Close",
@@ -178,7 +192,7 @@ Composio began as a tool to help developers building agents. We took popular app
 
 But now we are getting requests from startups, saying their clients are begging for a way to use their services through their agents.
 
-The humans are tired of dashboards, their agents are tired of MCP.
+The humans are tired of dashboards, their agents are tired of native MCP.
 
 This is a lesson for everyone building anything. **You are now serving a new species of user.** It doesn't have eyes. It won't click your sparkle button. It shows up with a goal and a set of tools, and it judges you on exactly one thing — whether it can get the job done.
 
@@ -186,7 +200,7 @@ For a decade, we built products to be easy for *people* to use. The next decade 
 
 So picture me again: frozen in front of that Datadog dashboard, no idea where anything is. I used to think that was me falling behind. Now I think it was just a preview.
 
-**AX is the new UX.**`,
+**Thank you.**`,
 	},
 } as const satisfies Record<string, SpeakerNote>;
 
