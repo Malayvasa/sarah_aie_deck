@@ -42,10 +42,10 @@ function SlackMessageBody() {
 				}}
 			>
 				<IosSlackNotification
-					sender="Alex Chen"
-					channel="#support"
-					body="The playground is not working for this user"
-					time="9:42 AM"
+					sender="Malay"
+					channel="#agentic-snippet-board"
+					body={'hey i get an error when i search for "(prod)"'}
+					time="7:34 PM"
 				/>
 			</motion.div>
 		</div>
