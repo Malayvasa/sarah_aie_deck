@@ -96,7 +96,7 @@ function ConfusedReaction({ active }: { active: boolean }) {
 	return (
 		<motion.div
 			className="absolute flex flex-col items-center"
-			style={{ right: -30, bottom: -64 }}
+			style={{ right: -50, bottom: -100 }}
 			initial={{ opacity: 0, scale: 0.6, rotate: -8 }}
 			animate={
 				active
@@ -113,15 +113,15 @@ function ConfusedReaction({ active }: { active: boolean }) {
 			<img
 				src="/memes/what-is-that.webp"
 				alt=""
-				width={140}
+				width={220}
 				style={{
-					borderRadius: 8,
+					borderRadius: 10,
 					boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
 				}}
 			/>
 			<div
-				className="mt-1.5 font-mono text-foreground"
-				style={{ fontSize: 14, transform: "rotate(2deg)" }}
+				className="mt-2 font-mono text-foreground"
+				style={{ fontSize: 18, transform: "rotate(2deg)" }}
 			>
 				what is that??
 			</div>

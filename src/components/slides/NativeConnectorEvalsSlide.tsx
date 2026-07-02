@@ -75,6 +75,7 @@ const KIND_TONE: Record<FailureKind, "destructive" | "warning"> = {
 
 const CHART_H = 170;
 const GRIDLINES = [0, 25, 50, 75, 100];
+const AXIS_W = 40;
 
 export function NativeConnectorEvalsSlide() {
 	return (
@@ -130,7 +131,7 @@ function YAxis() {
 	return (
 		<div
 			className="relative flex shrink-0 flex-col justify-between text-mono-xs text-muted-foreground"
-			style={{ height: CHART_H }}
+			style={{ height: CHART_H, width: AXIS_W }}
 		>
 			{GRIDLINES.slice()
 				.reverse()
@@ -246,30 +247,41 @@ function FailureSample({ active }: { active: boolean }) {
 			<div className="mb-2 text-mono-xs uppercase tracking-[0.14em] text-muted-foreground">
 				Sample of tasks the alternative failed
 			</div>
-			<div className="grid grid-cols-2 gap-x-10 gap-y-1.5">
-				{FAILURES.map((f, i) => (
-					<motion.div
-						key={f.task}
-						className="flex items-center gap-2"
-						initial={{ opacity: 0, x: -8 }}
-						animate={active ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
-						transition={{ duration: 0.35, delay: 0.9 + i * 0.06 }}
-					>
-						{/* eslint-disable-next-line @next/next/no-img-element */}
-						<img src={`/logos/${f.slug}.svg`} width={14} height={14} alt="" />
-						<span className="text-mono-xs text-foreground">✕ {f.task}</span>
-						<span
-							className={
-								"ml-auto shrink-0 rounded-full px-2 py-0.5 text-mono-xs " +
-								(KIND_TONE[f.kind] === "warning"
-									? "bg-warning/15 text-warning"
-									: "bg-destructive/15 text-destructive")
-							}
-						>
-							{KIND_LABEL[f.kind]}
-						</span>
-					</motion.div>
-				))}
+			<div className="flex gap-16 pl-12">
+				<div className="shrink-0" style={{ width: AXIS_W }} />
+				<div className="flex flex-1 justify-between">
+					{COMPARISONS.map((c, ci) => (
+						<div key={c.slug} className="flex w-[180px] flex-col gap-2">
+							{FAILURES.filter((f) => f.slug === c.slug).map((f, i) => (
+								<motion.div
+									key={f.task}
+									initial={{ opacity: 0, x: -8 }}
+									animate={
+										active ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }
+									}
+									transition={{
+										duration: 0.35,
+										delay: 0.9 + (ci * 3 + i) * 0.06,
+									}}
+								>
+									<div className="text-mono-xs leading-snug text-foreground">
+										✕ {f.task}
+									</div>
+									<span
+										className={
+											"mt-1 inline-block rounded-full px-2 py-0.5 text-mono-xs " +
+											(KIND_TONE[f.kind] === "warning"
+												? "bg-warning/15 text-warning"
+												: "bg-destructive/15 text-destructive")
+										}
+									>
+										{KIND_LABEL[f.kind]}
+									</span>
+								</motion.div>
+							))}
+						</div>
+					))}
+				</div>
 			</div>
 		</div>
 	);
