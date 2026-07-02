@@ -105,7 +105,7 @@ And so, the dashboard has died.
 
 I am thinking more and more about what this means for the future. Many startups have begun making their landing pages and websites "AI-friendly" for SEO/GEO purposes, but so few have really prepared their products for use by agents.
 
-Composio began as a tool to help developers building agents. We took popular apps that users want to connect to and turned them into tools that agents love to use.
+Composio began as a tool to help developers building agents. We took popular apps that users want to connect to and turned them into tools that agents can use.
 
 But now we are getting requests from startups, saying their clients are begging for a way to use their services through their agents.
 

@@ -23,14 +23,14 @@ export const speakerNotes = {
 	},
 	datadogConfession: {
 		section: "01b · The confession",
-		script: `So I have been using Datadog every day for the last 6 months, and last week my coworker came up to me and asked me if he could look at a Datadog alert. He was sort of looking over my shoulder, and I was feeling overly conscious about what I was doing on my screen. I opened up the Datadog dashboard and just froze. I drew a blank, realized I have no idea where anything is. And this is not a knock on Datadog. The problem was that I had genuinely never opened the dashboard. I had been using Datadog every day without ever looking at it.
+		script: `So I have been using Datadog every day for the last 6 months, and last week my coworker came up to me and asked me if he could look at a Datadog alert. He was sort of looking over my shoulder, I was logged out so I was logging in and I was feeling overly conscious about what I was doing on my screen. I opened up the Datadog dashboard and just froze. I drew a blank, realized I have no idea where anything is. And this is not a knock on Datadog. The problem was that I had genuinely never opened the dashboard. I had been using Datadog every day without ever looking at it.
 
 Today, I want to make an argument that sounds insane and then convince you it's obvious.`,
 		segments: [
 			{
 				atStep: 0,
 				section: "01b · Setup",
-				script: `So I have been using Datadog every day for the last 6 months, and last week my coworker came up to me and asked me if he could look at a Datadog alert. He was sort of looking over my shoulder, and I was feeling overly conscious about what I was doing on my screen.`,
+				script: `So I have been using Datadog every day for the last 6 months, and last week my coworker came up to me and asked me if he could look at a Datadog alert. He was sort of looking over my shoulder, I was logged out so I was logging in and I was feeling overly conscious about what I was doing on my screen.`,
 			},
 			{
 				atStep: 1,
@@ -134,7 +134,7 @@ So MCP gave agents a door into every app. But it left them standing in a thousan
 	},
 	debugDemo: {
 		section: "18 · Demo · Debugging from Slack",
-		script: `Let me show you the exact bug report from earlier — *"hey i get an error when i search for '(prod)'"* — a demo of how I would solve this in 2026.
+		script: `Let me show you the exact bug report from earlier and a demo of how I would solve this in 2026.
 
 I would have my Claude connected to the Composio MCP.
 
@@ -166,19 +166,23 @@ We translate messy, sparsely documented, ever-changing APIs from the apps you li
 		section: "20 · Demo · Onboarding & toolkit usage across two apps",
 		script: `Let me show you what I mean.
 
-So let's say I want to dig into some user data and see a distribution of what "vertical" my users select during onboarding. I can simply ask Claude for it. Again it will run the Composio Search tool, write and execute the query in Posthog, nice and simple.
+So let's say I want to dig into some user data and see a distribution of what "vertical" my users select during onboarding. I can simply ask Claude for it.
+
+Again it will run the Composio Search tool,
+
+then write and execute the query in Posthog, nice and simple.
 
 But now, what if I wanted to see which apps (we call them toolkits) are the most popular amongst those who selected Ecommerce. Well, the tool calling data exists in Metabase. Let's see if Claude can figure out how to query large amounts of data across these two platforms.
 
-Once again it uses Composio Search, it makes some queries to find the correct project in Metabase, to get the database schema, to sample some data and get a feel for how things are structured.
+Once again it uses Composio Search,
 
 Then, it queries the user IDs of those who selected Ecommerce from Posthog and saves the results without loading the full result into its context.
 
-Then, it uses the Composio Sandbox to write some code to dynamically generate an SQL query with a regex string to search for those user IDs — again without loading the entire thing into its context.
+Then it makes some queries to find the correct project in Metabase, to get the database schema, to sample some data and get a feel for how things are structured.
 
-Then it executes, and BAM.
+Once it has the user IDs and a feel for the data, it uses the Composio Sandbox to write some code to dynamically generate an SQL query with a regex string to search for those user IDs — again without loading the entire thing into its context.
 
-We can see the more popular toolkits amongst this user persona in less than a few minutes, with data pulled from both Posthog and Metabase.
+Then it executes, and BAM. We can see the more popular toolkits amongst this user persona in less than a few minutes, with data pulled from both Posthog and Metabase.
 
 If you want to play with the live version, come find me or go to the Composio booth.`,
 	},
@@ -188,11 +192,11 @@ If you want to play with the live version, come find me or go to the Composio bo
 
 I am thinking more and more about what this means for the future. Many startups have begun making their landing pages and websites "AI-friendly" for SEO/GEO purposes, but so few have really prepared their products for use by agents.
 
-Composio began as a tool to help developers building agents. We took popular apps that users want to connect to and turned them into tools that agents love to use.
+Composio began as a tool to help developers building agents. We took popular apps that users want to connect to and turned them into tools that agents can use.
 
 But now we are getting requests from startups, saying their clients are begging for a way to use their services through their agents.
 
-The humans are tired of dashboards, their agents are tired of native MCP.
+The humans are tired of dashboards, their agents are tired of poorly designed MCP servers.
 
 This is a lesson for everyone building anything. **You are now serving a new species of user.** It doesn't have eyes. It won't click your sparkle button. It shows up with a goal and a set of tools, and it judges you on exactly one thing — whether it can get the job done.
 
