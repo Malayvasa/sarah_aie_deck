@@ -115,11 +115,11 @@ function Legend() {
 	return (
 		<div className="flex items-center gap-4 pb-1">
 			<span className="flex items-center gap-1.5 text-mono-xs text-muted-foreground">
-				<span className="size-2.5 rounded-[2px] bg-success" />
+				<span className="size-2.5 rounded-[2px] bg-brand" />
 				Composio
 			</span>
 			<span className="flex items-center gap-1.5 text-mono-xs text-muted-foreground">
-				<span className="size-2.5 rounded-[2px] bg-destructive" />
+				<span className="size-2.5 rounded-[2px]" style={{ background: "#f97316" }} />
 				Native MCP + Skills
 			</span>
 		</div>
@@ -180,13 +180,13 @@ function ChartGroup({
 
 				<ChartBar
 					pct={c.composio}
-					tone="success"
+					tone="brand"
 					active={active}
 					delay={groupDelay + 0.2}
 				/>
 				<ChartBar
 					pct={c.alt}
-					tone="destructive"
+					tone="alt"
 					active={active}
 					delay={groupDelay + 0.35}
 				/>
@@ -213,7 +213,7 @@ function ChartBar({
 	delay,
 }: {
 	pct: number;
-	tone: "success" | "destructive";
+	tone: "brand" | "alt";
 	active: boolean;
 	delay: number;
 }) {
@@ -229,10 +229,9 @@ function ChartBar({
 			</motion.span>
 			<motion.div
 				className={
-					tone === "success"
-						? "w-full rounded-t-sm bg-success"
-						: "w-full rounded-t-sm bg-destructive"
+					tone === "brand" ? "w-full rounded-t-sm bg-brand" : "w-full rounded-t-sm"
 				}
+				style={tone === "alt" ? { background: "#f97316" } : undefined}
 				initial={{ height: 0 }}
 				animate={{ height: active ? `${pct}%` : 0 }}
 				transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay }}
