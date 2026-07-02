@@ -37,18 +37,31 @@ export function TerminalBodyScroll({
 		const el = scrollRef.current;
 		if (!el) return;
 
-		const pin = () => pinScrollElementSoon(el);
+		const contentEl = el.firstElementChild as HTMLElement | null;
+		if (!contentEl) return;
 
-		pin();
+		// Pin once on mount, then only when the DOM structure changes — new
+		// elements added anywhere in the tree. characterData mutations (which
+		// is what word-by-word streaming inside an existing text node looks
+		// like) are ignored, so the scroll no longer jitters on every word.
+		pinScrollElementSoon(el);
 
-		const observer = new ResizeObserver(pin);
-		observer.observe(el);
-		if (el.firstElementChild) {
-			observer.observe(el.firstElementChild);
-		}
+		const observer = new MutationObserver((mutations) => {
+			for (const m of mutations) {
+				if (m.addedNodes.length > 0) {
+					pinScrollElementSoon(el);
+					return;
+				}
+			}
+		});
+		observer.observe(contentEl, {
+			childList: true,
+			subtree: true,
+			characterData: false,
+		});
 
 		return () => observer.disconnect();
-	}, [stickToBottom, children]);
+	}, [stickToBottom]);
 
 	return (
 		<div
