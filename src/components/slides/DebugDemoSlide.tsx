@@ -104,20 +104,28 @@ function Stream({
 	children,
 	delayMs = WORD_MS,
 	onDone,
+	instant = false,
 }: {
 	children: React.ReactNode;
 	delayMs?: number;
 	onDone?: () => void;
+	/** Render children in one shot instead of word-by-word. Used by tool
+	 * blocks (Multi Execute, shell, read/edit) that should just "fire" rather
+	 * than feel like the agent is thinking. */
+	instant?: boolean;
 }) {
 	const total = useMemo(() => countTokens(children), [children]);
 	const [count, setCount] = useState(0);
 	const onDoneRef = useRef(onDone);
 	onDoneRef.current = onDone;
 	useEffect(() => {
+		if (instant) {
+			setCount(total);
+			const t = setTimeout(() => onDoneRef.current?.(), 0);
+			return () => clearTimeout(t);
+		}
 		setCount(0);
 		if (total === 0) {
-			// Nothing to stream — schedule onDone on next tick so callers
-			// still get a chance to advance.
 			const t = setTimeout(() => onDoneRef.current?.(), 0);
 			return () => clearTimeout(t);
 		}
@@ -131,7 +139,7 @@ function Stream({
 			}
 		}, delayMs);
 		return () => clearInterval(t);
-	}, [total, delayMs]);
+	}, [total, delayMs, instant]);
 	const sliced = useMemo(
 		() => sliceTree(children, { n: count }),
 		[children, count],
@@ -230,34 +238,36 @@ function DebugDemoBody() {
 						{reached(3) && (
 							<Fade>
 								<Sequence>
-									<ShellUnit>
-										<ShellCmd>
-											$ cd /Users/sarahsimionescu/GitHub/test-app && ls &&
-											git remote -v && git branch --show-current
-										</ShellCmd>
-										<ShellOut>
-											<span style={{ color: "var(--terminal-dim)" }}>
-												... (13 earlier lines, ctrl+o to expand)
-											</span>
-											{"\n"}tsconfig.tsbuildinfo{"\n"}vitest.config.ts{"\n"}
-											origin&nbsp;&nbsp;
-											https://github.com/ComposioHQ/agentic-snippet-board.git
-											(fetch){"\n"}origin&nbsp;&nbsp;
-											https://github.com/ComposioHQ/agentic-snippet-board.git
-											(push){"\n"}main
-										</ShellOut>
-										<Took>Took 0.1s</Took>
-									</ShellUnit>
-									<ShellUnit>
-										<ShellCmd>
-											{`$ cd /Users/sarahsimionescu/GitHub/test-app && grep -rn "snippet.search\\|snippet\\.search\\|\\.search\\b\\|new RegExp" src/server 2>/dev/null | head -30`}
-										</ShellCmd>
-										<ShellOut>
-											src/server/snippets.filter.ts:6:&nbsp;&nbsp;const re =
-											new RegExp(trimmed, "i");
-										</ShellOut>
-										<Took>Took 0.0s</Took>
-									</ShellUnit>
+									<ShellUnit
+										latencyMs={220}
+										command={
+											<CodeBlock>{`$ cd ~/GitHub/test-app && ls && git remote -v && git branch --show-current`}</CodeBlock>
+										}
+										response={
+											<CodeBlock>
+												<span
+													style={{ color: "var(--terminal-dim)" }}
+												>
+													… (13 earlier lines, ctrl+o to expand)
+													{"\n"}
+												</span>
+												{`tsconfig.tsbuildinfo
+vitest.config.ts
+origin  https://github.com/ComposioHQ/agentic-snippet-board.git (fetch)
+origin  https://github.com/ComposioHQ/agentic-snippet-board.git (push)
+main`}
+											</CodeBlock>
+										}
+									/>
+									<ShellUnit
+										latencyMs={200}
+										command={
+											<CodeBlock>{`$ grep -rn "new RegExp" src/server | head -30`}</CodeBlock>
+										}
+										response={
+											<CodeBlock>{`src/server/snippets.filter.ts:6:  const re = new RegExp(trimmed, "i");`}</CodeBlock>
+										}
+									/>
 									<ReadUnit path="~/GitHub/test-app/src/server/snippets.filter.ts" />
 								</Sequence>
 							</Fade>
@@ -278,38 +288,29 @@ function DebugDemoBody() {
 						{reached(5) && (
 							<Fade>
 								<Sequence>
-									<ShellUnit>
-										<ShellCmd>
-											$ cd /Users/sarahsimionescu/GitHub/test-app && git
-											checkout -b fix/snippet-search-regex-escape && git add
-											src/server/snippets.filter.ts && git commit -m
-											"fix(search): escape regex metacharacters in snippet
-											search query
-											{"\n\n"}User-provided queries were passed directly into
-											new RegExp, causing{"\n"}TRPCError: Invalid regular
-											expression when the query contained regex{"\n"}
-											metacharacters like '(', '[', etc. (e.g. searching
-											'(prod)').{"\n\n"}Escape metacharacters before
-											constructing the RegExp so queries are{"\n"}treated as
-											literal substrings." && git push -u origin
-											fix/snippet-search-regex-escape 2&gt;&amp;1 | tail -20
-										</ShellCmd>
-										<ShellOut>
-											<span style={{ color: "var(--terminal-dim)" }}>
-												... (10 earlier lines, ctrl+o to expand)
-											</span>
-											{"\n"}remote: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-											https://github.com/ComposioHQ/agentic-snippet-board/security/dependabot/1
-											{"\n"}remote:{"\n"}To
-											https://github.com/ComposioHQ/agentic-snippet-board.git
-											{"\n"}&nbsp;* [new branch] &nbsp;&nbsp;&nbsp;
-											fix/snippet-search-regex-escape →
-											fix/snippet-search-regex-escape{"\n"}branch
-											'fix/snippet-search-regex-escape' set up to track
-											'origin/fix/snippet-search-regex-escape'.
-										</ShellOut>
-										<Took>Took 2.5s</Took>
-									</ShellUnit>
+									<ShellUnit
+										latencyMs={2500}
+										command={
+											<CodeBlock>{`$ git checkout -b fix/snippet-search-regex-escape
+$ git add src/server/snippets.filter.ts
+$ git commit -m "fix(search): escape regex metacharacters …"
+$ git push -u origin fix/snippet-search-regex-escape`}</CodeBlock>
+										}
+										response={
+											<CodeBlock>
+												<span
+													style={{ color: "var(--terminal-dim)" }}
+												>
+													… (10 earlier lines, ctrl+o to expand)
+													{"\n"}
+												</span>
+												{`remote: Resolving deltas: 100% …
+To https://github.com/ComposioHQ/agentic-snippet-board.git
+ * [new branch] fix/snippet-search-regex-escape → fix/snippet-search-regex-escape
+branch tracks origin/fix/snippet-search-regex-escape`}
+											</CodeBlock>
+										}
+									/>
 								</Sequence>
 							</Fade>
 						)}
@@ -338,9 +339,158 @@ const FADE = {
 
 function Fade({ children }: { children: React.ReactNode }) {
 	return (
-		<motion.div className="flex flex-col gap-3" {...FADE}>
+		<motion.div className="flex flex-col gap-5" {...FADE}>
 			{children}
 		</motion.div>
+	);
+}
+
+/* ─── ToolCall: bordered call → wait → response beat ─────────────────── */
+function ToolCall({
+	tool,
+	query,
+	response,
+	latencyMs = 800,
+	onDone,
+}: {
+	tool: string;
+	query: React.ReactNode;
+	response: React.ReactNode;
+	latencyMs?: number;
+	onDone?: () => void;
+}) {
+	const [phase, setPhase] = useState<"calling" | "response">("calling");
+	const onDoneRef = useRef(onDone);
+	onDoneRef.current = onDone;
+
+	useEffect(() => {
+		const t = setTimeout(() => setPhase("response"), latencyMs);
+		return () => clearTimeout(t);
+	}, [latencyMs]);
+
+	useEffect(() => {
+		if (phase !== "response") return;
+		const t = setTimeout(() => onDoneRef.current?.(), 900);
+		return () => clearTimeout(t);
+	}, [phase]);
+
+	return (
+		<div
+			className="rounded-sm"
+			style={{
+				background: "rgba(255,255,255,0.018)",
+				border: "1px solid rgba(255,255,255,0.07)",
+			}}
+		>
+			<div
+				className="flex items-center gap-2 px-3 py-1.5"
+				style={{
+					borderBottom: "1px solid rgba(255,255,255,0.05)",
+					fontSize: 11,
+				}}
+			>
+				<span
+					style={{
+						color: "var(--terminal-fg)",
+						fontWeight: 600,
+						fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+					}}
+				>
+					{tool}
+				</span>
+			</div>
+			<div
+				className="flex gap-3 px-3 py-2"
+				style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+			>
+				<TagChip color="var(--terminal-teal)">REQ</TagChip>
+				<div className="min-w-0 flex-1">{query}</div>
+			</div>
+			{phase === "calling" ? (
+				<div
+					className="flex items-center gap-3 px-3 py-2"
+					style={{ color: "var(--terminal-dim)" }}
+				>
+					<motion.span
+						animate={{ opacity: [0.25, 1, 0.25] }}
+						transition={{
+							duration: 1.2,
+							repeat: Infinity,
+							ease: "easeInOut",
+						}}
+						style={{ color: "var(--terminal-teal)" }}
+					>
+						●
+					</motion.span>
+					<span className="text-[11.5px] italic">calling…</span>
+				</div>
+			) : (
+				<motion.div
+					className="flex gap-3 px-3 py-2"
+					initial={{ opacity: 0, y: 4 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.24 }}
+				>
+					<TagChip color={COL_ADD}>RES</TagChip>
+					<div className="min-w-0 flex-1">{response}</div>
+				</motion.div>
+			)}
+		</div>
+	);
+}
+
+function TagChip({
+	color,
+	children,
+}: {
+	color: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<span
+			className="shrink-0 rounded-sm px-1.5 py-[1px]"
+			style={{
+				fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+				fontSize: 9.5,
+				fontWeight: 700,
+				letterSpacing: "0.14em",
+				color,
+				border: `1px solid ${color}`,
+				lineHeight: 1.4,
+				alignSelf: "flex-start",
+			}}
+		>
+			{children}
+		</span>
+	);
+}
+
+function CodeBlock({ children }: { children: React.ReactNode }) {
+	return (
+		<div
+			className="whitespace-pre-wrap"
+			style={{
+				fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+				fontSize: 11,
+				lineHeight: 1.5,
+				color: "var(--terminal-fg)",
+			}}
+		>
+			{children}
+		</div>
+	);
+}
+
+function ResultLine({ children }: { children: React.ReactNode }) {
+	return (
+		<div
+			style={{
+				fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+				fontSize: 11.5,
+			}}
+		>
+			{children}
+		</div>
 	);
 }
 
@@ -365,58 +515,134 @@ function AssistantText({
 
 function SearchToolsBlock({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Search Tools" subtitle="Composio">
-			<SearchToolsPlan onDone={onDone} />
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_SEARCH_TOOLS"
+			latencyMs={1000}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ ask: "pull the slack thread and use sentry + datadog
+         to find the error, then open a draft PR with the fix" }`}</CodeBlock>
+			}
+			response={<SearchToolsPlan />}
+		/>
 	);
 }
 
 function MultiExecuteBlock1({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Multi Execute" subtitle="Composio">
-			<MultiExecute1 onDone={onDone} />
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
+			latencyMs={1500}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ tool_calls: [
+  { name: "SLACK_FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION",
+    args: { permalink: "…/p1782959651275229" } },
+  { name: "SENTRY_RETRIEVE_PROJECT_ISSUES_LIST",
+    args: { org: "composio-ly", project: "sarah-demo",
+            query: "is:unresolved" } },
+  { name: "DATADOG_SEARCH_LOGS",
+    args: { service: "agentic-snippet-board",
+            query: "status:error", time_from: <7d> } },
+] }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>3/3</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· thread parsed · 1 sentry issue{" "}
+					</span>
+					<Mono>SARAH-DEMO-1</Mono>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>· 14 datadog matches</span>
+				</ResultLine>
+			}
+		/>
 	);
 }
 
 function MultiExecuteBlock2({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Multi Execute" subtitle="Composio">
-			<MultiExecute2 onDone={onDone} />
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
+			latencyMs={1100}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ tool_calls: [
+  { name: "GITHUB_CREATE_A_PULL_REQUEST",
+    args: { owner: "ComposioHQ",
+            repo:  "agentic-snippet-board",
+            head:  "fix/snippet-search-regex-escape",
+            base:  "main",
+            title: "fix(search): escape regex metacharacters …",
+            draft: true } },
+] }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>
+						draft PR opened
+					</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>·{" "}</span>
+					<Link>ComposioHQ/agentic-snippet-board#3</Link>
+				</ResultLine>
+			}
+		/>
 	);
 }
 
 function ShellUnit({
-	children,
+	command,
+	response,
+	latencyMs = 350,
 	onDone,
 }: {
-	children: React.ReactNode;
+	command: React.ReactNode;
+	response: React.ReactNode;
+	latencyMs?: number;
 	onDone?: () => void;
 }) {
 	return (
-		<ShellBlock>
-			<Stream onDone={onDone}>{children}</Stream>
-		</ShellBlock>
+		<ToolCall
+			tool="COMPOSIO_REMOTE_BASH"
+			latencyMs={latencyMs}
+			onDone={onDone}
+			query={command}
+			response={response}
+		/>
 	);
 }
 
 function ReadUnit({ path, onDone }: { path: string; onDone?: () => void }) {
 	return (
-		<ReadBlock path={path}>
-			<SnippetsFilterBefore onDone={onDone} />
-		</ReadBlock>
+		<ToolCall
+			tool="fs.read"
+			latencyMs={280}
+			onDone={onDone}
+			query={
+				<CodeBlock>
+					<span style={{ color: "var(--terminal-teal)" }}>{path}</span>
+				</CodeBlock>
+			}
+			response={<SnippetsFilterBefore />}
+		/>
 	);
 }
 
 function EditUnit({ path, onDone }: { path: string; onDone?: () => void }) {
 	return (
-		<EditBlock path={path}>
-			<SnippetsFilterDiff onDone={onDone} />
-		</EditBlock>
+		<ToolCall
+			tool="fs.edit"
+			latencyMs={280}
+			onDone={onDone}
+			query={
+				<CodeBlock>
+					<span style={{ color: "var(--terminal-teal)" }}>{path}</span>
+				</CodeBlock>
+			}
+			response={<SnippetsFilterDiff />}
+		/>
 	);
 }
 
@@ -511,8 +737,8 @@ function UserPrompt() {
 		<div
 			className="rounded-sm px-3 py-2 leading-relaxed"
 			style={{
-				background: "rgba(255,255,255,0.03)",
-				border: "1px solid rgba(255,255,255,0.06)",
+				background: "rgba(217,119,87,0.03)",
+				border: "1px solid rgba(217,119,87,0.32)",
 				color: "var(--terminal-fg)",
 			}}
 		>
@@ -601,499 +827,236 @@ const COL_STR = "#C27E65"; // orange — strings
 const COL_LINK = "#6F90B0"; // link blue
 const COL_WARN = "#FFEB55"; // warnings — bright yellow
 
-function SearchToolsPlan({ onDone }: { onDone?: () => void }) {
+/* Tool discovery result. Slack renders in full ChatGPT-plan detail because
+ * that's the primary app the agent's about to work through. Sentry and
+ * Datadog collapse to the compact PlanAppRow so the box stays readable. */
+function SearchToolsPlan() {
 	return (
-		<Stream onDone={onDone}>
-		<div className="flex flex-col gap-3 text-[13px] leading-relaxed">
-			{/* SLACK */}
-			<PlanApp>
-				<PlanStep n={1} tags={["SLACK_FIND_CHANNELS"]}
+		<div className="flex flex-col gap-3 leading-relaxed">
+			<div style={{ color: "var(--terminal-dim)", fontSize: 11.5 }}>
+				20 tools · 3 connections resolved · 6 usage-warnings attached
+			</div>
+
+			{/* Slack — full plan */}
+			<PlanAppFull
+				name="Slack"
+				count={5}
+				connection="Composio (default)"
+				pitfalls={[
+					"FETCH_CONVERSATION_HISTORY: only returns channel timeline; won't include thread replies unless you fetch the thread separately",
+					"FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION: messages[] includes parent + replies; don't assume the first item is a reply",
+					"FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION: thread_not_found if ts isn't the exact parent message timestamp",
+				]}
+			>
+				<PlanStep
+					n={1}
+					tags={["SLACK_FIND_CHANNELS"]}
 					chips={["Optional (if channel is unknown)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
+					kinds={["opt", "prereq"]}
+				>
 					Resolve the conversation using SLACK_FIND_CHANNELS (identify the
 					channel to query).
 				</PlanStep>
-				<PlanStep n={2} tags={["SLACK_SEARCH_MESSAGES"]}
-					chips={["Optional (if parent message timestamp is unknown)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
+				<PlanStep
+					n={2}
+					tags={["SLACK_SEARCH_MESSAGES"]}
+					chips={[
+						"Optional (if parent message timestamp is unknown)",
+						"Prerequisite",
+					]}
+					kinds={["opt", "prereq"]}
+				>
 					Locate the parent message using SLACK_SEARCH_MESSAGES (capture
 					exact channel and parent ts).
 				</PlanStep>
-				<PlanStep n={3} tags={["SLACK_FETCH_CONVERSATION_HISTORY"]}
+				<PlanStep
+					n={3}
+					tags={["SLACK_FETCH_CONVERSATION_HISTORY"]}
 					chips={["Optional (if multiple candidates match)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
+					kinds={["opt", "prereq"]}
+				>
 					Confirm the correct parent message using
 					SLACK_FETCH_CONVERSATION_HISTORY (verify in timeline and record
 					exact parent ts).
 				</PlanStep>
-				<div style={{ color: "var(--terminal-dim)" }}>
-					&nbsp;&nbsp;…5 more steps
+				<div style={{ color: "var(--terminal-dim)", fontSize: 10.5 }}>
+					&nbsp;&nbsp;…2 more steps
 				</div>
-				<PlanWarn>
-					<Tag>SLACK_FETCH_CONVERSATION_HISTORY</Tag> Only returns the channel
-					timeline; it won't include thread replies unless you fetch the
-					thread separately.
-				</PlanWarn>
-				<PlanWarn>
-					<Tag>SLACK_FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION</Tag> messages[]
-					includes the parent message plus replies; don't assume the first
-					item is a reply.
-				</PlanWarn>
-				<PlanWarn>
-					<Tag>SLACK_FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION</Tag>{" "}
-					thread_not_found occurs if ts is not the exact parent message
-					timestamp (for example, using a reply timestamp).
-				</PlanWarn>
-			</PlanApp>
-			<PlanDivider />
+			</PlanAppFull>
 
-			{/* SENTRY */}
-			<PlanApp>
-				<PlanStep n={1} tags={["SENTRY_GET_ORGANIZATION_BY_ID_OR_SLUG"]}
-					chips={["Optional (if organization identifier may be wrong)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
-					Confirm access/scope using SENTRY_GET_ORGANIZATION_BY_ID_OR_SLUG
-					(avoid org-scoped 403/404 from mismatched identifier).
-				</PlanStep>
-				<PlanStep n={2}
-					tags={["SENTRY_GET_PROJECT_LIST", "SENTRY_RETRIEVE_ORGANIZATION_PROJECTS", "SENTRY_ACCESS_PROJECT_INFORMATION"]}
-					chips={["Optional (if project identifiers are missing/ambiguous)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
-					Discover/verify projects using SENTRY_GET_PROJECT_LIST; if
-					incomplete, use SENTRY_RETRIEVE_ORGANIZATION_PROJECTS; optionally
-					confirm the target using SENTRY_ACCESS_PROJECT_INFORMATION.
-				</PlanStep>
-				<PlanStep n={3} tags={["SENTRY_RETRIEVE_PROJECT_ISSUES_LIST"]}
-					chips={["Required", "Step"]}
-					kinds={["req", "prereq"]}>
-					For each target project, list recent unresolved issues using
-					SENTRY_RETRIEVE_PROJECT_ISSUES_LIST (apply an unresolved-focused
-					query; paginate via cursor until exhausted when available; retain
-					the full payload if inline output is truncated).
-				</PlanStep>
-				<div style={{ color: "var(--terminal-dim)" }}>
-					&nbsp;&nbsp;…3 more steps
-				</div>
-				<PlanWarn>
-					<Tag>SENTRY_RETRIEVE_PROJECT_ISSUES_LIST</Tag> Issues may be nested
-					under response.data.details; treating response.data as a flat list
-					can make parsing look empty.
-				</PlanWarn>
-				<PlanWarn>
-					<Tag>SENTRY_RETRIEVE_PROJECT_ISSUES_LIST</Tag> count (and sometimes
-					userCount) can be returned as strings; cast to integers before
-					sorting to avoid lexicographic ranking.
-				</PlanWarn>
-				<PlanWarn>
-					<Tag>SENTRY_RETRIEVE_PROJECT_ISSUES_LIST</Tag> stats fields can be
-					arrays of [epoch,value] buckets; aggregate bucket values rather
-					than treating stats as a scalar.
-				</PlanWarn>
-				<PlanNote>
-					Flatten multi-project issue results and rank by numeric count
-				</PlanNote>
-				<Code>{[
-					`issues=[i `,
-					{ t: "for", c: COL_KEY },
-					` r `,
-					{ t: "in", c: COL_KEY },
-					` payload.get(`,
-					{ t: "'results'", c: COL_STR },
-					`,[]) `,
-					{ t: "for", c: COL_KEY },
-					` i `,
-					{ t: "in", c: COL_KEY },
-					` ((r.get(`,
-					{ t: "'response'", c: COL_STR },
-					`,{}).get(`,
-					{ t: "'data'", c: COL_STR },
-					`,{}) `,
-					{ t: "or", c: COL_KEY },
-					` {}).get(`,
-					{ t: "'details'", c: COL_STR },
-					`,[]) `,
-					{ t: "or", c: COL_KEY },
-					` [])]`,
-				]}</Code>
-				<Code>{[
-					`rows=`,
-					{ t: "sorted", c: COL_BUILTIN },
-					`(issues,key=`,
-					{ t: "lambda", c: COL_KEY },
-					` x:`,
-					{ t: "int", c: COL_BUILTIN },
-					`(x.get(`,
-					{ t: "'count'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` `,
-					{ t: "0", c: COL_NUM },
-					`),reverse=`,
-					{ t: "True", c: COL_NUM },
-					`)`,
-				]}</Code>
-				<Code>{[
-					`out=[{k:i.get(k) `,
-					{ t: "for", c: COL_KEY },
-					` k `,
-					{ t: "in", c: COL_KEY },
-					` [`,
-					{ t: "'id'", c: COL_STR },
-					`,`,
-					{ t: "'shortId'", c: COL_STR },
-					`,`,
-					{ t: "'title'", c: COL_STR },
-					`,`,
-					{ t: "'count'", c: COL_STR },
-					`,`,
-					{ t: "'lastSeen'", c: COL_STR },
-					`,`,
-					{ t: "'permalink'", c: COL_STR },
-					`]} `,
-					{ t: "for", c: COL_KEY },
-					` i `,
-					{ t: "in", c: COL_KEY },
-					` rows[:`,
-					{ t: "20", c: COL_NUM },
-					`]]`,
-				]}</Code>
-				<PlanNote>
-					Aggregate bucketed stats into a single activity value (when
-					present)
-				</PlanNote>
-				<Code>{[
-					{ t: "def", c: COL_KEY },
-					` `,
-					{ t: "bucket_sum", c: COL_FN },
-					`(`,
-					{ t: "issue,key", c: COL_PARAM },
-					`):`,
-				]}</Code>
-				<Code>{[
-					`    b=(issue.get(`,
-					{ t: "'stats'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` {}).get(key) `,
-					{ t: "or", c: COL_KEY },
-					` []`,
-				]}</Code>
-				<Code>{[
-					`    `,
-					{ t: "return", c: COL_KEY },
-					` `,
-					{ t: "sum", c: COL_BUILTIN },
-					`(v `,
-					{ t: "for", c: COL_KEY },
-					` _,v `,
-					{ t: "in", c: COL_KEY },
-					` b `,
-					{ t: "if", c: COL_KEY },
-					` `,
-					{ t: "isinstance", c: COL_BUILTIN },
-					`(v,(`,
-					{ t: "int", c: COL_BUILTIN },
-					`,`,
-					{ t: "float", c: COL_BUILTIN },
-					`)))`,
-				]}</Code>
-			</PlanApp>
-			<PlanDivider />
-
-			{/* DATADOG */}
-			<PlanApp>
-				<PlanStep n={1} tags={["DATADOG_SEARCH_LOGS"]}
-					chips={["Required", "Prerequisite"]}
-					kinds={["req", "prereq"]}>
-					Pick a narrow UTC window and convert to 13-digit epoch milliseconds
-					for DATADOG_SEARCH_LOGS (control volume/accuracy).
-				</PlanStep>
-				<PlanStep n={2} tags={["DATADOG_LIST_APM_SERVICES"]}
-					chips={["Optional (if service name uncertain)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
-					Enumerate candidate services using DATADOG_LIST_APM_SERVICES (build
-					correct service-scoped filters).
-				</PlanStep>
-				<PlanStep n={3} tags={["DATADOG_LIST_LOG_INDEXES"]}
-					chips={["Optional (if index unknown or results unexpectedly empty)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
-					Discover valid indexes using DATADOG_LIST_LOG_INDEXES (avoid
-					false-empty searches from wrong index scoping).
-				</PlanStep>
-				<div style={{ color: "var(--terminal-dim)" }}>
-					&nbsp;&nbsp;…6 more steps
-				</div>
-				<PlanWarn>
-					<Tag>DATADOG_SEARCH_LOGS</Tag> time_from/time_to must be epoch
-					milliseconds (13-digit); passing seconds can silently mis-scope and
-					look like no results.
-				</PlanWarn>
-				<PlanWarn>
-					<Tag>DATADOG_SEARCH_LOGS</Tag> Matches may appear under
-					response.data.logs or response.data_preview.logs depending on
-					truncation/offloading; don't assume a single path.
-				</PlanWarn>
-				<PlanWarn>
-					<Tag>DATADOG_SEARCH_LOGS</Tag> nextLogId can remain non-empty even
-					when a page looks complete; rely on cursor pagination or you can
-					miss most matches.
-				</PlanWarn>
-				<PlanNote>
-					Extract logs defensively when DATADOG_SEARCH_LOGS returns either
-					full logs or preview logs
-				</PlanNote>
-				<Code>{[
-					{ t: "def", c: COL_KEY },
-					` `,
-					{ t: "extract_logs", c: COL_FN },
-					`(`,
-					{ t: "result", c: COL_PARAM },
-					`):`,
-				]}</Code>
-				<Code>{[
-					`    r=(result.get(`,
-					{ t: "'response'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` {})`,
-				]}</Code>
-				<Code>{[
-					`    d=(r.get(`,
-					{ t: "'data'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` {})`,
-				]}</Code>
-				<Code>{[
-					`    `,
-					{ t: "if", c: COL_KEY },
-					` `,
-					{ t: "isinstance", c: COL_BUILTIN },
-					`(d,`,
-					{ t: "dict", c: COL_BUILTIN },
-					`) `,
-					{ t: "and", c: COL_KEY },
-					` d.get(`,
-					{ t: "'logs'", c: COL_STR },
-					`) `,
-					{ t: "is", c: COL_KEY },
-					` `,
-					{ t: "not", c: COL_KEY },
-					` `,
-					{ t: "None", c: COL_NUM },
-					`:`,
-				]}</Code>
-				<Code>{[
-					`        `,
-					{ t: "return", c: COL_KEY },
-					` d.get(`,
-					{ t: "'logs'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` []`,
-				]}</Code>
-				<Code>{[
-					`    dp=(r.get(`,
-					{ t: "'data_preview'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` {})`,
-				]}</Code>
-				<Code>{[
-					`    `,
-					{ t: "return", c: COL_KEY },
-					` dp.get(`,
-					{ t: "'logs'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` []`,
-				]}</Code>
-				<PlanNote>
-					Cluster recurring signatures while tolerating missing/non-string
-					fields
-				</PlanNote>
-				<Code>{[
-					{ t: "from", c: COL_KEY },
-					` collections `,
-					{ t: "import", c: COL_KEY },
-					` Counter`,
-				]}</Code>
-				<Code>{[
-					{ t: "def", c: COL_KEY },
-					` `,
-					{ t: "top_signatures", c: COL_FN },
-					`(`,
-					{ t: "logs,n=", c: COL_PARAM },
-					{ t: "20", c: COL_NUM },
-					`):`,
-				]}</Code>
-				<Code>{[`    c=Counter()`]}</Code>
-				<Code>{[
-					`    `,
-					{ t: "for", c: COL_KEY },
-					` l `,
-					{ t: "in", c: COL_KEY },
-					` logs:`,
-				]}</Code>
-				<Code>{[
-					`        a=l.get(`,
-					{ t: "'attributes'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` {}`,
-				]}</Code>
-				<Code>{[
-					`        msg=`,
-					{ t: "str", c: COL_BUILTIN },
-					`(l.get(`,
-					{ t: "'message'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` `,
-					{ t: "''", c: COL_STR },
-					`)[:`,
-					{ t: "120", c: COL_NUM },
-					`]`,
-				]}</Code>
-				<Code>{[
-					`        err=`,
-					{ t: "str", c: COL_BUILTIN },
-					`(a.get(`,
-					{ t: "'errorMessage'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` a.get(`,
-					{ t: "'error'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` a.get(`,
-					{ t: "'errorStack'", c: COL_STR },
-					`) `,
-					{ t: "or", c: COL_KEY },
-					` `,
-					{ t: "''", c: COL_STR },
-					`)[:`,
-					{ t: "160", c: COL_NUM },
-					`]`,
-				]}</Code>
-				<Code>{[
-					`        c[(msg,err)]+=`,
-					{ t: "1", c: COL_NUM },
-				]}</Code>
-				<Code>{[
-					`    `,
-					{ t: "return", c: COL_KEY },
-					` c.most_common(n)`,
-				]}</Code>
-			</PlanApp>
-			<PlanDivider />
-
-			{/* GITHUB */}
-			<PlanApp>
-				<PlanStep n={1} tags={["GITHUB_GET_A_BRANCH"]}
-					chips={["Required", "Prerequisite"]}
-					kinds={["req", "prereq"]}>
-					Validate base and head refs exist and are accessible using
-					GITHUB_GET_A_BRANCH (repeat per ref; use owner-qualified head when
-					applicable).
-				</PlanStep>
-				<PlanStep n={2} tags={["GITHUB_LIST_BRANCHES"]}
-					chips={["Optional (if ref name is uncertain)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
-					Discover candidate branch names using GITHUB_LIST_BRANCHES (use to
-					correct typos/format before write ops).
-				</PlanStep>
-				<PlanStep n={3} tags={["GITHUB_COMPARE_TWO_COMMITS"]}
-					chips={["Optional (to prevent no-diff/unrelated-history failures)", "Prerequisite"]}
-					kinds={["opt", "prereq"]}>
-					Compare base vs head using GITHUB_COMPARE_TWO_COMMITS (proceed only
-					if head is ahead / not identical).
-				</PlanStep>
-				<div style={{ color: "var(--terminal-dim)" }}>
-					&nbsp;&nbsp;…5 more steps
-				</div>
-				<PlanWarn>
-					<Tag>GITHUB_CREATE_A_PULL_REQUEST</Tag> HTTP 422 Validation Failed
-					if base/head invalid/identical, no common history, or an open PR
-					already exists; errors[].field may be "head" with code="invalid";
-					can also fail with HTTP 403 due to access restrictions.
-				</PlanWarn>
-				<PlanWarn>
-					<Tag>GITHUB_CREATE_A_PULL_REQUEST</Tag> Create response payload can
-					be very large/truncated; rely on response.data.number and
-					response.data.html_url as canonical outputs.
-				</PlanWarn>
-				<PlanWarn>
-					<Tag>GITHUB_GET_A_PULL_REQUEST</Tag> Immediately after creation,
-					mergeable may be null and mergeable_state may be "unknown"; rapid
-					follow-up GETs can transiently 404.
-				</PlanWarn>
-				<PlanNote>Filter and sort pull request list results by an actor field</PlanNote>
-				<Code>{[
-					`prs=response_data.get(`,
-					{ t: "'pull_requests'", c: COL_STR },
-					`,[])`,
-				]}</Code>
-				<Code>{[
-					`actor=`,
-					{ t: "'a_user'", c: COL_STR },
-				]}</Code>
-				<Code>{[
-					`filtered=[p `,
-					{ t: "for", c: COL_KEY },
-					` p `,
-					{ t: "in", c: COL_KEY },
-					` prs `,
-					{ t: "if", c: COL_KEY },
-					` p.get(`,
-					{ t: "'user'", c: COL_STR },
-					`,{}).get(`,
-					{ t: "'login'", c: COL_STR },
-					`)==actor]`,
-				]}</Code>
-				<Code>{[
-					`filtered.sort(key=`,
-					{ t: "lambda", c: COL_KEY },
-					` p:p.get(`,
-					{ t: "'created_at'", c: COL_STR },
-					`,`,
-					{ t: "''", c: COL_STR },
-					`))`,
-				]}</Code>
-				<Code>{[
-					`rows=[(p.get(`,
-					{ t: "'title'", c: COL_STR },
-					`),p.get(`,
-					{ t: "'created_at'", c: COL_STR },
-					`)) `,
-					{ t: "for", c: COL_KEY },
-					` p `,
-					{ t: "in", c: COL_KEY },
-					` filtered]`,
-				]}</Code>
-			</PlanApp>
-
-			{/* Connections list */}
-			<div className="mt-1">
-				<div style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-					Connections
-				</div>
-				<Conn name="slack" accounts={[{ name: "Composio", def: true }]} />
-				<Conn
-					name="sentry"
-					accounts={[{ name: "@composio-sentry", def: true }]}
+			{/* Sentry + Datadog — compact */}
+			<div className="flex flex-col gap-2">
+				<PlanAppRow
+					name="Sentry"
+					count={6}
+					tags={["GET_ORG", "GET_PROJECT_LIST", "RETRIEVE_ISSUES"]}
+					hint="org: composio-ly / sarah-demo"
 				/>
-				<Conn
-					name="datadog"
-					accounts={[
-						{ name: "@dashboard-write-only-key", def: true },
-						{ name: "@read-logs" },
-					]}
+				<PlanAppRow
+					name="Datadog"
+					count={9}
+					tags={["SEARCH_LOGS", "LIST_APM_SERVICES", "LIST_LOG_INDEXES"]}
+					hint="service: agentic-snippet-board"
 				/>
-				<Conn name="github" accounts={[{ name: "", def: true }]} />
 			</div>
 		</div>
-		</Stream>
+	);
+}
+
+/* Full-detail app plan — header row + PlanStep/PlanWarn children indented
+ * to align with the compact PlanAppRow visuals below it. */
+function PlanAppFull({
+	name,
+	count,
+	connection,
+	pitfalls,
+	children,
+}: {
+	name: string;
+	count: number;
+	connection?: string;
+	pitfalls?: string[];
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<div className="flex items-baseline gap-2 text-[12px]">
+				<span
+					style={{
+						color: "var(--terminal-fg)",
+						fontWeight: 700,
+						minWidth: 80,
+					}}
+				>
+					{name}
+				</span>
+				<span
+					className="whitespace-nowrap"
+					style={{ color: "var(--terminal-dim)" }}
+				>
+					{count} tools
+				</span>
+				{connection ? (
+					<span
+						className="ml-auto whitespace-nowrap"
+						style={{ color: "var(--terminal-dim)", fontSize: 10.5 }}
+					>
+						{connection}
+					</span>
+				) : null}
+			</div>
+			<div className="flex flex-col gap-1 pl-[88px] text-[11px]">
+				{children}
+			</div>
+			{pitfalls && pitfalls.length > 0 ? (
+				<PitfallsBlock pitfalls={pitfalls} />
+			) : null}
+		</div>
+	);
+}
+
+function PlanAppRow({
+	name,
+	count,
+	tags,
+	hint,
+	pitfalls,
+}: {
+	name: string;
+	count: number;
+	tags: string[];
+	hint?: string;
+	pitfalls?: string[];
+}) {
+	const extra = count - tags.length;
+	return (
+		<div className="flex flex-col gap-1.5">
+			<div className="flex items-baseline gap-2 text-[12px]">
+				<span
+					style={{
+						color: "var(--terminal-fg)",
+						fontWeight: 700,
+						minWidth: 80,
+					}}
+				>
+					{name}
+				</span>
+				<span
+					className="whitespace-nowrap"
+					style={{ color: "var(--terminal-dim)" }}
+				>
+					{count} tools
+				</span>
+				<span
+					className="min-w-0 flex-1 truncate"
+					style={{
+						color: COL_TAG,
+						fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+						fontSize: 10.5,
+					}}
+				>
+					[{tags.join(", ")}
+					{extra > 0 ? (
+						<span style={{ color: "var(--terminal-dim)" }}>
+							, +{extra} more
+						</span>
+					) : null}
+					]
+				</span>
+				{hint ? (
+					<span
+						className="shrink-0 whitespace-nowrap"
+						style={{ color: "var(--terminal-dim)", fontSize: 10.5 }}
+					>
+						{hint}
+					</span>
+				) : null}
+			</div>
+			{pitfalls && pitfalls.length > 0 ? (
+				<PitfallsBlock pitfalls={pitfalls} />
+			) : null}
+		</div>
+	);
+}
+
+/* Yellow-bordered pitfalls block. Sits under the compact app row and
+ * makes it obvious these are the calls to watch out for. */
+function PitfallsBlock({ pitfalls }: { pitfalls: string[] }) {
+	return (
+		<div
+			className="ml-[88px] flex flex-col gap-0.5 px-2 py-1.5"
+			style={{
+				border: "1px solid rgba(255,235,85,0.28)",
+				borderRadius: 6,
+			}}
+		>
+			<div
+				className="flex items-center gap-1"
+				style={{
+					color: COL_WARN,
+					fontSize: 9.5,
+					fontWeight: 700,
+					letterSpacing: "0.16em",
+					textTransform: "uppercase",
+				}}
+			>
+				<span>⚠</span>
+				<span>pitfalls</span>
+			</div>
+			{pitfalls.map((p) => (
+				<div
+					key={p}
+					style={{
+						color: COL_WARN,
+						fontSize: 10.5,
+						lineHeight: 1.45,
+						fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+					}}
+				>
+					{p}
+				</div>
+			))}
+		</div>
 	);
 }
 
@@ -1126,20 +1089,31 @@ function PlanStep({
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="leading-relaxed">
-			<span style={{ color: "var(--terminal-fg)" }}>{n}.</span>{" "}
-			{tags.map((t, i) => (
-				<span key={t}>
-					<Tag>{t}</Tag>
-					{i < tags.length - 1 ? " " : null}
-				</span>
-			))}{" "}
-			{chips.map((c, i) => (
-				<Chip key={c + i} kind={kinds[i]}>
-					{c}
-				</Chip>
-			))}{" "}
-			<span style={{ color: "var(--terminal-dim)" }}>{children}</span>
+		<div className="flex items-baseline gap-1.5 leading-relaxed">
+			<span className="shrink-0" style={{ color: "var(--terminal-fg)" }}>
+				{n}.
+			</span>
+			<span className="shrink-0 whitespace-nowrap">
+				{tags.map((t, i) => (
+					<span key={t}>
+						<Tag>{t}</Tag>
+						{i < tags.length - 1 ? " " : null}
+					</span>
+				))}
+			</span>
+			<span className="shrink-0 whitespace-nowrap">
+				{chips.map((c, i) => (
+					<Chip key={c + i} kind={kinds[i]}>
+						{c}
+					</Chip>
+				))}
+			</span>
+			<span
+				className="min-w-0 flex-1 truncate"
+				style={{ color: "var(--terminal-dim)" }}
+			>
+				{children}
+			</span>
 		</div>
 	);
 }
@@ -1237,47 +1211,14 @@ function Conn({
 
 /* ─── Multi Execute blocks ──────────────────────────────────────────────── */
 
-function MultiExecute1({ onDone }: { onDone?: () => void }) {
-	return (
-		<Stream onDone={onDone}>
-			<div className="flex flex-col gap-2">
-				<div style={{ color: "var(--terminal-dim)" }}>
-					Executing 3 tools in parallel:{" "}
-					<Paren>(SLACK_FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION)</Paren>{" "}
-					<Paren>(SENTRY_RETRIEVE_PROJECT_ISSUES_LIST)</Paren>{" "}
-					<Paren>(DATADOG_SEARCH_LOGS)</Paren>
-				</div>
-				<ToolResult name="SLACK_FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION" />
-				<ToolResult name="SENTRY_RETRIEVE_PROJECT_ISSUES_LIST" />
-				<ToolResult name="DATADOG_SEARCH_LOGS" />
-				<div>
-					<span style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-						(3/3)
-					</span>{" "}
-					<span style={{ color: COL_ADD }}>succeeded</span>
-				</div>
-			</div>
-		</Stream>
-	);
+// MultiExecute1/2 replaced by MultiExecuteBlock1/2 → ToolCall. Kept as
+// no-op stubs so any lingering imports still resolve.
+function MultiExecute1(_props: { onDone?: () => void }) {
+	return null;
 }
 
-function MultiExecute2({ onDone }: { onDone?: () => void }) {
-	return (
-		<Stream onDone={onDone}>
-			<div className="flex flex-col gap-2">
-				<div style={{ color: "var(--terminal-dim)" }}>
-					Executing 1 tool: <Paren>(GITHUB_CREATE_A_PULL_REQUEST)</Paren>
-				</div>
-				<ToolResult name="GITHUB_CREATE_A_PULL_REQUEST" />
-				<div>
-					<span style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-						(1/1)
-					</span>{" "}
-					<span style={{ color: COL_ADD }}>succeeded</span>
-				</div>
-			</div>
-		</Stream>
-	);
+function MultiExecute2(_props: { onDone?: () => void }) {
+	return null;
 }
 
 function Paren({ children }: { children: React.ReactNode }) {
@@ -1397,9 +1338,9 @@ function EditBlock({
 	);
 }
 
-function SnippetsFilterBefore({ onDone }: { onDone?: () => void }) {
+function SnippetsFilterBefore() {
 	return (
-		<Stream onDone={onDone}>
+		<>
 			<CodeLine>
 				<K>import</K> <K>type</K> {"{ Snippet }"} <K>from</K>{" "}
 				<S>"~/types/snippet"</S>;
@@ -1427,13 +1368,13 @@ function SnippetsFilterBefore({ onDone }: { onDone?: () => void }) {
 				<P>)</P> =&gt; re.test(s.title) || re.test(s.content));
 			</CodeLine>
 			<CodeLine>{"}"}</CodeLine>
-		</Stream>
+		</>
 	);
 }
 
-function SnippetsFilterDiff({ onDone }: { onDone?: () => void }) {
+function SnippetsFilterDiff() {
 	return (
-		<Stream onDone={onDone}>
+		<>
 			<DiffLine kind="ctx">&nbsp;&nbsp;&nbsp;&nbsp;...</DiffLine>
 			<DiffLine kind="ctx">&nbsp;&nbsp;2</DiffLine>
 			<DiffLine kind="ctx">
@@ -1469,7 +1410,7 @@ function SnippetsFilterDiff({ onDone }: { onDone?: () => void }) {
 				re.test(s.content));
 			</DiffLine>
 			<DiffLine kind="ctx">&nbsp;&nbsp;8 {"}"}</DiffLine>
-		</Stream>
+		</>
 	);
 }
 
@@ -1509,7 +1450,7 @@ function B({ children }: { children: React.ReactNode }) {
 
 function Link({ children }: { children: React.ReactNode }) {
 	return (
-		<span style={{ color: COL_LINK, textDecoration: "underline" }}>
+		<span style={{ color: "#D97757", textDecoration: "underline" }}>
 			{children}
 		</span>
 	);

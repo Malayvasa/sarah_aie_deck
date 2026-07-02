@@ -104,20 +104,28 @@ function Stream({
 	children,
 	delayMs = WORD_MS,
 	onDone,
+	instant = false,
 }: {
 	children: React.ReactNode;
 	delayMs?: number;
 	onDone?: () => void;
+	/** Render children in one shot instead of word-by-word. Used by tool
+	 * blocks (Multi Execute, Remote Workbench, Remote Bash) so they just
+	 * "fire" rather than feel like the agent is thinking. */
+	instant?: boolean;
 }) {
 	const total = useMemo(() => countTokens(children), [children]);
 	const [count, setCount] = useState(0);
 	const onDoneRef = useRef(onDone);
 	onDoneRef.current = onDone;
 	useEffect(() => {
+		if (instant) {
+			setCount(total);
+			const t = setTimeout(() => onDoneRef.current?.(), 0);
+			return () => clearTimeout(t);
+		}
 		setCount(0);
 		if (total === 0) {
-			// Nothing to stream — schedule onDone on next tick so callers
-			// still get a chance to advance.
 			const t = setTimeout(() => onDoneRef.current?.(), 0);
 			return () => clearTimeout(t);
 		}
@@ -131,7 +139,7 @@ function Stream({
 			}
 		}, delayMs);
 		return () => clearInterval(t);
-	}, [total, delayMs]);
+	}, [total, delayMs, instant]);
 	const sliced = useMemo(
 		() => sliceTree(children, { n: count }),
 		[children, count],
@@ -289,9 +297,171 @@ const FADE = {
 
 function Fade({ children }: { children: React.ReactNode }) {
 	return (
-		<motion.div className="flex flex-col gap-3" {...FADE}>
+		<motion.div className="flex flex-col gap-5" {...FADE}>
 			{children}
 		</motion.div>
+	);
+}
+
+/* ─── ToolCall: bordered call → wait → response beat ────────────────────
+ * One box per tool invocation. Renders the outgoing query up front, holds
+ * a pulsing "calling…" indicator for `latencyMs`, then swaps in the
+ * response and fires `onDone` so Sequence advances to the next unit. */
+function ToolCall({
+	tool,
+	query,
+	response,
+	latencyMs = 800,
+	onDone,
+}: {
+	tool: string;
+	query: React.ReactNode;
+	response: React.ReactNode;
+	latencyMs?: number;
+	onDone?: () => void;
+}) {
+	const [phase, setPhase] = useState<"calling" | "response">("calling");
+	const onDoneRef = useRef(onDone);
+	onDoneRef.current = onDone;
+
+	useEffect(() => {
+		const t = setTimeout(() => setPhase("response"), latencyMs);
+		return () => clearTimeout(t);
+	}, [latencyMs]);
+
+	useEffect(() => {
+		if (phase !== "response") return;
+		// Hold on the response for a beat so consecutive tool calls don't
+		// pop in immediately after each other — gives the reader a moment
+		// to register the return value before the next call mounts.
+		const t = setTimeout(() => onDoneRef.current?.(), 900);
+		return () => clearTimeout(t);
+	}, [phase]);
+
+	return (
+		<div
+			className="overflow-hidden rounded-sm"
+			style={{
+				background: "rgba(255,255,255,0.018)",
+				border: "1px solid rgba(255,255,255,0.07)",
+			}}
+		>
+			{/* Header */}
+			<div
+				className="flex items-center gap-2 px-3 py-1.5"
+				style={{
+					borderBottom: "1px solid rgba(255,255,255,0.05)",
+					fontSize: 11,
+				}}
+			>
+				<span
+					style={{
+						color: "var(--terminal-fg)",
+						fontWeight: 600,
+						fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+					}}
+				>
+					{tool}
+				</span>
+			</div>
+
+			{/* Query */}
+			<div
+				className="flex gap-3 px-3 py-2"
+				style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+			>
+				<TagChip color="var(--terminal-teal)">REQ</TagChip>
+				<div className="min-w-0 flex-1">{query}</div>
+			</div>
+
+			{/* Pending → Response */}
+			{phase === "calling" ? (
+				<div
+					className="flex items-center gap-3 px-3 py-2"
+					style={{ color: "var(--terminal-dim)" }}
+				>
+					<motion.span
+						animate={{ opacity: [0.25, 1, 0.25] }}
+						transition={{
+							duration: 1.2,
+							repeat: Infinity,
+							ease: "easeInOut",
+						}}
+						style={{ color: "var(--terminal-teal)" }}
+					>
+						●
+					</motion.span>
+					<span className="text-[11.5px] italic">calling…</span>
+				</div>
+			) : (
+				<motion.div
+					className="flex gap-3 px-3 py-2"
+					initial={{ opacity: 0, y: 4 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ duration: 0.24 }}
+				>
+					<TagChip color={COL_ADD}>RES</TagChip>
+					<div className="min-w-0 flex-1">{response}</div>
+				</motion.div>
+			)}
+		</div>
+	);
+}
+
+function TagChip({
+	color,
+	children,
+}: {
+	color: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<span
+			className="shrink-0 rounded-sm px-1.5 py-[1px]"
+			style={{
+				fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+				fontSize: 9.5,
+				fontWeight: 700,
+				letterSpacing: "0.14em",
+				color,
+				border: `1px solid ${color}`,
+				lineHeight: 1.4,
+				alignSelf: "flex-start",
+			}}
+		>
+			{children}
+		</span>
+	);
+}
+
+/* Reusable pieces for ToolCall bodies. Query bodies get a monospace code
+ * block; response bodies get a compact one-line summary. */
+function CodeBlock({ children }: { children: React.ReactNode }) {
+	return (
+		<div
+			className="whitespace-pre-wrap"
+			style={{
+				fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+				fontSize: 11,
+				lineHeight: 1.5,
+				color: "var(--terminal-fg)",
+			}}
+		>
+			{children}
+		</div>
+	);
+}
+
+function ResultLine({ children }: { children: React.ReactNode }) {
+	return (
+		<div
+			style={{
+				fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+				fontSize: 11.5,
+			}}
+		>
+			{children}
+		</div>
 	);
 }
 
@@ -323,7 +493,7 @@ function ShellUnit({
 }) {
 	return (
 		<ShellBlock>
-			<Stream onDone={onDone}>{children}</Stream>
+			<Stream instant onDone={onDone}>{children}</Stream>
 		</ShellBlock>
 	);
 }
@@ -419,8 +589,8 @@ function UserPrompt({ children }: { children: React.ReactNode }) {
 		<div
 			className="rounded-sm px-3 py-2 leading-relaxed"
 			style={{
-				background: "rgba(255,255,255,0.03)",
-				border: "1px solid rgba(255,255,255,0.06)",
+				background: "rgba(217,119,87,0.03)",
+				border: "1px solid rgba(217,119,87,0.32)",
 				color: "var(--terminal-fg)",
 			}}
 		>
@@ -521,7 +691,7 @@ function Mono({ children }: { children: React.ReactNode }) {
 
 function Link({ children }: { children: React.ReactNode }) {
 	return (
-		<span style={{ color: COL_LINK, textDecoration: "underline" }}>
+		<span style={{ color: "#D97757", textDecoration: "underline" }}>
 			{children}
 		</span>
 	);
@@ -723,213 +893,169 @@ function ToolResult({ name }: { name: string }) {
 
 function PosthogSearchBlock({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Search Tools" subtitle="Composio">
-			<PosthogPlan onDone={onDone} />
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_SEARCH_TOOLS"
+			latencyMs={1000}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ ask: "query posthog events for onboarding property vertical
+         selected this week and get percentages" }`}</CodeBlock>
+			}
+			response={<PosthogPlan />}
+		/>
 	);
 }
 
-function PosthogPlan({ onDone }: { onDone?: () => void }) {
+/* Compact tool discovery — one line per app + a couple of pitfalls that
+ * would bite the agent if it doesn't watch out. */
+function PosthogPlan() {
 	return (
-		<Stream onDone={onDone}>
-			<div className="flex flex-col gap-3 leading-relaxed">
-				<div style={{ color: "var(--terminal-dim)" }}>
-					query posthog events for onboarding property vertical selected this
-					week and get percentages
-				</div>
-				<PlanApp>
-					<PlanStep
-						n={1}
-						tags={[
-							"POSTHOG_LIST_ORGANIZATION_PROJECTS",
-							"POSTHOG_LIST_ALL_PROJECTS_ACROSS_ORGANIZATIONS",
-						]}
-						chips={["Optional (if project_id unknown)", "Prerequisite"]}
-						kinds={["opt", "prereq"]}
-					>
-						Discover/select an accessible project using
-						POSTHOG_LIST_ORGANIZATION_PROJECTS (if needed broaden with
-						POSTHOG_LIST_ALL_PROJECTS_ACROSS_ORGANIZATIONS; follow
-						pagination).
-					</PlanStep>
-					<PlanStep
-						n={2}
-						tags={[
-							"POSTHOG_GET_EVENT_DEFINITIONS",
-							"POSTHOG_LIST_AND_FILTER_PROJECT_EVENTS",
-						]}
-						chips={["Required", "Prerequisite"]}
-						kinds={["req", "prereq"]}
-					>
-						Catalog available event names/metadata using
-						POSTHOG_GET_EVENT_DEFINITIONS (confirm exact naming/case; if the
-						list is long, optionally cross-check candidates via
-						POSTHOG_LIST_AND_FILTER_PROJECT_EVENTS).
-					</PlanStep>
-					<PlanStep
-						n={3}
-						tags={[
-							"POSTHOG_GET_FILTERED_PROJECT_PROPERTY_DEFINITIONS",
-							"POSTHOG_RETRIEVE_PROJECT_EVENT_VALUES",
-						]}
-						chips={[
-							"Optional (if filter/breakdown keys or values are unclear)",
-							"Prerequisite",
-						]}
-						kinds={["opt", "prereq"]}
-					>
-						Identify stable property keys using
-						POSTHOG_GET_FILTERED_PROJECT_PROPERTY_DEFINITIONS (and confirm
-						distinct buckets via POSTHOG_RETRIEVE_PROJECT_EVENT_VALUES).
-					</PlanStep>
-					<div style={{ color: "var(--terminal-dim)" }}>
-						&nbsp;&nbsp;…4 more steps
-					</div>
-					<PlanWarn>
-						<Tag>POSTHOG_LIST_ALL_PROJECTS_ACROSS_ORGANIZATIONS</Tag> Can fail
-						with 401 authentication_error or 403 permission_denied when
-						credentials lack access.
-					</PlanWarn>
-					<PlanWarn>
-						<Tag>POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID</Tag> 400
-						validation_error often includes invalid_input (unsupported
-						functions), bad_arguments (type mismatch), and not_an_aggregate
-						(missing GROUP BY).
-					</PlanWarn>
-					<PlanWarn>
-						<Tag>POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID</Tag> Results are
-						tabular (columns + results) and may be nested under
-						data.response or returned as data_preview; map values by column
-						index.
-					</PlanWarn>
-					<PlanNote>
-						Extractor for POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID tabular shapes
-						(data/response/data_preview)
-					</PlanNote>
-					<Code>
-						{[
-							{ t: "def", c: COL_KEY },
-							" table(r):",
-						]}
-					</Code>
-					<Code>
-						{[
-							"  d=(r ",
-							{ t: "or", c: COL_KEY },
-							" {}).get(",
-							{ t: "'data'", c: COL_STR },
-							") ",
-							{ t: "or", c: COL_KEY },
-							" (r ",
-							{ t: "or", c: COL_KEY },
-							" {}).get(",
-							{ t: "'response'", c: COL_STR },
-							") ",
-							{ t: "or", c: COL_KEY },
-							" {}",
-						]}
-					</Code>
-					<Code>
-						{[
-							"  rr=d.get(",
-							{ t: "'response'", c: COL_STR },
-							") ",
-							{ t: "or", c: COL_KEY },
-							" d",
-						]}
-					</Code>
-					<Code>
-						{[
-							"  ",
-							{ t: "return", c: COL_KEY },
-							" rr.get(",
-							{ t: "'data'", c: COL_STR },
-							") ",
-							{ t: "or", c: COL_KEY },
-							" rr.get(",
-							{ t: "'data_preview'", c: COL_STR },
-							") ",
-							{ t: "or", c: COL_KEY },
-							" rr",
-						]}
-					</Code>
-					<Code>{["t=table(tool_result)"]}</Code>
-					<Code>
-						{[
-							"cols=t.get(",
-							{ t: "'columns'", c: COL_STR },
-							") ",
-							{ t: "or", c: COL_KEY },
-							" []",
-						]}
-					</Code>
-					<Code>
-						{[
-							"rows=t.get(",
-							{ t: "'results'", c: COL_STR },
-							") ",
-							{ t: "or", c: COL_KEY },
-							" []",
-						]}
-					</Code>
-					<PlanNote>
-						Convert tabular output (columns + results) into list-of-dicts
-					</PlanNote>
-					<Code>
-						{[
-							"out=[",
-							{ t: "dict", c: COL_BUILTIN },
-							"(",
-							{ t: "zip", c: COL_BUILTIN },
-							"(cols,r)) ",
-							{ t: "for", c: COL_KEY },
-							" r ",
-							{ t: "in", c: COL_KEY },
-							" rows]",
-						]}
-					</Code>
-				</PlanApp>
-				<div className="mt-1">
-					<div style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-						Connections
-					</div>
-					<Conn
-						name="posthog"
-						accounts={[{ name: "soham@composio.dev", def: true }]}
-					/>
-				</div>
+		<div className="flex flex-col gap-2.5 leading-relaxed">
+			<div style={{ color: "var(--terminal-dim)", fontSize: 11.5 }}>
+				7 tools · 1 connection resolved · 3 usage-warnings attached
 			</div>
-		</Stream>
+			<PlanAppRow
+				name="PostHog"
+				count={7}
+				tags={[
+					"LIST_PROJECTS",
+					"GET_EVENT_DEFINITIONS",
+					"CREATE_QUERY_IN_PROJECT_BY_ID",
+				]}
+				hint="soham@composio.dev (default)"
+				pitfalls={[
+					"CREATE_QUERY_IN_PROJECT_BY_ID: 400 often hides invalid_input / bad_arguments / not_an_aggregate",
+					"Results are tabular (columns + results) and may nest under data.response OR data_preview",
+				]}
+			/>
+		</div>
+	);
+}
+
+function PlanAppRow({
+	name,
+	count,
+	tags,
+	hint,
+	pitfalls,
+}: {
+	name: string;
+	count: number;
+	tags: string[];
+	hint?: string;
+	pitfalls?: string[];
+}) {
+	return (
+		<div className="flex flex-col gap-1">
+			<div className="flex items-baseline gap-2 text-[12px]">
+				<span
+					style={{
+						color: "var(--terminal-fg)",
+						fontWeight: 700,
+						minWidth: 80,
+					}}
+				>
+					{name}
+				</span>
+				<span
+					className="whitespace-nowrap"
+					style={{ color: "var(--terminal-dim)" }}
+				>
+					{count} tools
+				</span>
+				<span style={{ color: "var(--terminal-dim)" }}>·</span>
+				<div className="flex min-w-0 flex-wrap items-baseline gap-1">
+					{tags.map((t) => (
+						<span
+							key={t}
+							style={{
+								color: COL_TAG,
+								fontFamily:
+									'"JetBrains Mono", ui-monospace, monospace',
+								fontSize: 10.5,
+							}}
+						>
+							[{t}]
+						</span>
+					))}
+					{count > tags.length ? (
+						<span
+							className="ml-1"
+							style={{
+								color: "var(--terminal-dim)",
+								fontSize: 10.5,
+							}}
+						>
+							+{count - tags.length} more
+						</span>
+					) : null}
+				</div>
+				{hint ? (
+					<span
+						className="ml-auto whitespace-nowrap"
+						style={{ color: "var(--terminal-dim)", fontSize: 10.5 }}
+					>
+						{hint}
+					</span>
+				) : null}
+			</div>
+			{pitfalls && pitfalls.length > 0 ? (
+				<div className="flex flex-col gap-0.5 pl-[88px]">
+					{pitfalls.map((p) => (
+						<div
+							key={p}
+							className="flex gap-1.5"
+							style={{
+								color: COL_WARN,
+								fontSize: 10.5,
+								lineHeight: 1.45,
+							}}
+						>
+							<span className="shrink-0">⚠</span>
+							<span
+								style={{
+									fontFamily:
+										'"JetBrains Mono", ui-monospace, monospace',
+								}}
+							>
+								{p}
+							</span>
+						</div>
+					))}
+				</div>
+			) : null}
+		</div>
 	);
 }
 
 function PosthogQueryBlock({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Multi Execute" subtitle="Composio">
-			<PosthogQueryContent onDone={onDone} />
-			<Tail />
-		</AgentPanel>
-	);
-}
-
-function PosthogQueryContent({ onDone }: { onDone?: () => void }) {
-	return (
-		<Stream onDone={onDone}>
-			<div className="flex flex-col gap-2">
-				<div style={{ color: "var(--terminal-dim)" }}>
-					Executing 1 tool:{" "}
-					<Paren>(POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID)</Paren>
-				</div>
-				<ToolResult name="POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID" />
-				<div>
-					<span style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-						(1/1)
-					</span>{" "}
-					<span style={{ color: COL_ADD }}>succeeded</span>
-				</div>
-			</div>
-		</Stream>
+		<ToolCall
+			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
+			latencyMs={900}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ tool_calls: [
+  { name: "POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID",
+    args: { project: 137,
+            query: "SELECT properties.vertical, count()
+                    FROM events
+                    WHERE event = 'onboarding_step_completed'
+                      AND timestamp >= now() - INTERVAL 7 DAY
+                    GROUP BY properties.vertical
+                    ORDER BY count() DESC" } },
+] }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>6 rows</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· columns [vertical, count] · 3.2k events matched
+					</span>
+				</ResultLine>
+			}
+		/>
 	);
 }
 
@@ -964,198 +1090,177 @@ function VerticalDistResult({ onDone }: { onDone?: () => void }) {
 
 function MetabaseSearchBlock({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Search Tools" subtitle="Composio">
-			<MetabasePlan onDone={onDone} />
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_SEARCH_TOOLS"
+			latencyMs={900}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ ask: "run SQL query against metabase logs table
+         to find toolkits by user id pattern" }`}</CodeBlock>
+			}
+			response={<MetabasePlan />}
+		/>
 	);
 }
 
-function MetabasePlan({ onDone }: { onDone?: () => void }) {
+function MetabasePlan() {
 	return (
-		<Stream onDone={onDone}>
-			<div className="flex flex-col gap-3 leading-relaxed">
-				<div style={{ color: "var(--terminal-dim)" }}>
-					run SQL query against metabase logs table to find toolkits by user
-					id pattern
-				</div>
-				<PlanApp>
-					<PlanStep
-						n={1}
-						tags={["METABASE_LIST_DATABASES"]}
-						chips={["Required", "Prerequisite"]}
-						kinds={["req", "prereq"]}
-					>
-						Select the target data source using METABASE_LIST_DATABASES
-						(identify where error events and auth configuration live).
-					</PlanStep>
-					<PlanStep
-						n={2}
-						tags={["METABASE_GET_API_DATABASE_ID_AUTOCOMPLETE_SUGGESTIONS"]}
-						chips={[
-							"Optional (if database ID is unclear from names)",
-							"Prerequisite",
-						]}
-						kinds={["opt", "prereq"]}
-					>
-						Confirm the database identifier using
-						METABASE_GET_API_DATABASE_ID_AUTOCOMPLETE_SUGGESTIONS (reduce
-						mis-targeting before querying).
-					</PlanStep>
-					<PlanStep
-						n={3}
-						tags={["METABASE_LIST_TABLES"]}
-						chips={["Required", "Step"]}
-						kinds={["req", "prereq"]}
-					>
-						Enumerate candidate tables using METABASE_LIST_TABLES (narrow by
-						schema to reduce payload).
-					</PlanStep>
-					<div style={{ color: "var(--terminal-dim)" }}>
-						&nbsp;&nbsp;…5 more steps
-					</div>
-					<PlanWarn>
-						<Tag>METABASE_POST_API_DATASET</Tag> HTTP 400/invalid-query often
-						stems from mismatched identifier casing/quoting or alias/CTE
-						inconsistencies; quote and alias explicitly.
-					</PlanWarn>
-					<PlanWarn>
-						<Tag>METABASE_POST_API_DATASET</Tag> Responses are structured
-						(e.g., separate column metadata and row arrays); don't assume a
-						flat list.
-					</PlanWarn>
-					<PlanWarn>
-						<Tag>METABASE_POST_API_DATASET</Tag> Large result sets may be
-						truncated (rows-truncated style signal); start with LIMIT and
-						prefer aggregates.
-					</PlanWarn>
-				</PlanApp>
-				<div className="mt-1">
-					<div style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-						Connections
-					</div>
-					<Conn name="metabase" accounts={[{ name: "", def: true }]} />
-				</div>
+		<div className="flex flex-col gap-2.5 leading-relaxed">
+			<div style={{ color: "var(--terminal-dim)", fontSize: 11.5 }}>
+				8 tools · 1 connection resolved · 3 usage-warnings attached
 			</div>
-		</Stream>
+			<PlanAppRow
+				name="Metabase"
+				count={8}
+				tags={[
+					"LIST_DATABASES",
+					"LIST_TABLES",
+					"GET_TABLE_SCHEMA",
+					"POST_API_DATASET",
+				]}
+				hint="(default)"
+				pitfalls={[
+					"POST_API_DATASET: HTTP 400 often stems from mismatched identifier casing/quoting",
+					"POST_API_DATASET: query.native.query has a hard length limit — pass long SQL via file",
+				]}
+			/>
+		</div>
 	);
 }
 
 function PosthogLargeQueryBlock({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Multi Execute" subtitle="Composio">
-			<PosthogLargeContent onDone={onDone} />
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
+			latencyMs={1400}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ tool_calls: [
+  { name: "POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID",
+    args: { project: 137,
+            query: "SELECT distinct_id
+                    FROM events
+                    WHERE properties.vertical = 'Ecommerce'
+                      AND event = 'onboarding_step_completed'
+                      AND timestamp >= now() - INTERVAL 7 DAY
+                    GROUP BY distinct_id" } },
+] }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>459 user ids</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· ⇘ saved →{" "}
+					</span>
+					<Mono>/mnt/files/mex/grow.json</Mono>
+				</ResultLine>
+			}
+		/>
 	);
 }
 
-function PosthogLargeContent({ onDone }: { onDone?: () => void }) {
-	return (
-		<Stream onDone={onDone}>
-			<div className="flex flex-col gap-2">
-				<div style={{ color: "var(--terminal-dim)" }}>
-					Executing 1 tool:{" "}
-					<Paren>(POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID)</Paren>
-				</div>
-				<ToolResult name="POSTHOG_CREATE_QUERY_IN_PROJECT_BY_ID" />
-				<div>
-					<span style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-						(1/1)
-					</span>{" "}
-					<span style={{ color: COL_ADD }}>succeeded</span>
-				</div>
-				<div style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-					⇘ large result saved → <Mono>/mnt/files/mex/grow.json</Mono>
-				</div>
-			</div>
-		</Stream>
-	);
+function PosthogLargeContent(_props: { onDone?: () => void }) {
+	return null;
 }
 
 function MetabaseDiscoveryBlock({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Multi Execute" subtitle="Composio">
-			<MetabaseDiscoveryContent onDone={onDone} />
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
+			latencyMs={700}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ tool_calls: [
+  { name: "METABASE_GET_API_SEARCH",
+    args: { q: "tool_execution_logs" } },
+  { name: "METABASE_LIST_DATABASES", args: {} },
+] }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>2/2</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· 3 search hits · database{" "}
+					</span>
+					<Mono>232 (app_db)</Mono>
+				</ResultLine>
+			}
+		/>
 	);
 }
 
-function MetabaseDiscoveryContent({ onDone }: { onDone?: () => void }) {
-	return (
-		<Stream onDone={onDone}>
-			<div className="flex flex-col gap-2">
-				<div style={{ color: "var(--terminal-dim)" }}>
-					Executing 2 tools in parallel:{" "}
-					<Paren>(METABASE_GET_API_SEARCH)</Paren>{" "}
-					<Paren>(METABASE_LIST_DATABASES)</Paren>
-				</div>
-				<ToolResult name="METABASE_GET_API_SEARCH" />
-				<ToolResult name="METABASE_LIST_DATABASES" />
-				<div>
-					<span style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-						(2/2)
-					</span>{" "}
-					<span style={{ color: COL_ADD }}>succeeded</span>
-				</div>
-			</div>
-		</Stream>
-	);
+function MetabaseDiscoveryContent(_props: { onDone?: () => void }) {
+	return null;
 }
 
 function MetabaseSchemaBlock({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Multi Execute" subtitle="Composio">
-			<MetabaseSchemaContent onDone={onDone} />
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
+			latencyMs={500}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ tool_calls: [
+  { name: "METABASE_GET_TABLE_SCHEMA",
+    args: { database: 232, table: "tool_execution_logs" } },
+] }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>columns:</span>{" "}
+					<Mono>
+						entityId, provider, startTime, endTime, status, args, latency
+					</Mono>
+				</ResultLine>
+			}
+		/>
 	);
 }
 
-function MetabaseSchemaContent({ onDone }: { onDone?: () => void }) {
-	return (
-		<Stream onDone={onDone}>
-			<div className="flex flex-col gap-2">
-				<div style={{ color: "var(--terminal-dim)" }}>
-					Executing 1 tool: <Paren>(METABASE_GET_TABLE_SCHEMA)</Paren>
-				</div>
-				<ToolResult name="METABASE_GET_TABLE_SCHEMA" />
-				<div>
-					<span style={{ color: "var(--terminal-fg)", fontWeight: 600 }}>
-						(1/1)
-					</span>{" "}
-					<span style={{ color: COL_ADD }}>succeeded</span>
-				</div>
-			</div>
-		</Stream>
-	);
+function MetabaseSchemaContent(_props: { onDone?: () => void }) {
+	return null;
 }
 
-/* Remote Workbench panel (Python code) */
+/* Remote Workbench — Python-code call wrapped in the ToolCall visual. */
 function WorkbenchPanel({
 	children,
+	response,
+	latencyMs = 700,
 	onDone,
 }: {
 	children: React.ReactNode;
+	response: React.ReactNode;
+	latencyMs?: number;
 	onDone?: () => void;
 }) {
 	return (
-		<AgentPanel title="Remote Workbench" subtitle="Composio">
-			<Stream onDone={onDone}>
-				<div className="flex flex-col gap-0.5">{children}</div>
-				<div className="mt-2" style={{ color: "var(--terminal-dim)" }}>
-					sandbox:…6i6j
-				</div>
-			</Stream>
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_REMOTE_WORKBENCH"
+			latencyMs={latencyMs}
+			onDone={onDone}
+			query={<div className="flex flex-col gap-0.5">{children}</div>}
+			response={response}
+		/>
 	);
 }
 
 function Workbench1({ onDone }: { onDone?: () => void }) {
 	return (
-		<WorkbenchPanel onDone={onDone}>
+		<WorkbenchPanel
+			onDone={onDone}
+			latencyMs={800}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>stdout</span>{" "}
+					<Mono>459 [a16b9f3b…, 3c3ad13b…, 607dfd3b…]</Mono>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>· len(sql) = 8,412</span>
+				</ResultLine>
+			}
+		>
 			<Code>
 				{[
 					{ t: "import", c: COL_KEY },
@@ -1248,31 +1353,45 @@ function Workbench1({ onDone }: { onDone?: () => void }) {
 
 function MetabaseDatasetBlock1({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Multi Execute" subtitle="Composio">
-			<Stream onDone={onDone}>
-				<div className="flex flex-col gap-2">
-					<div style={{ color: "var(--terminal-dim)" }}>
-						Executing 1 tool: <Paren>(METABASE_POST_API_DATASET)</Paren>
-					</div>
-					<ToolResult name="METABASE_POST_API_DATASET" />
-					<div>
-						<span
-							style={{ color: "var(--terminal-fg)", fontWeight: 600 }}
-						>
-							(1/1)
-						</span>{" "}
-						<span style={{ color: COL_ADD }}>succeeded</span>
-					</div>
-				</div>
-			</Stream>
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
+			latencyMs={900}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ tool_calls: [
+  { name: "METABASE_POST_API_DATASET",
+    args: { database: 232, type: "native",
+            native: { query: "SELECT provider, count() AS c
+                              FROM logs WHERE match(entityId, …) …" } } },
+] }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_REQ, fontWeight: 700 }}>✕</span>{" "}
+					<span style={{ color: COL_REQ }}>HTTP 400</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· "query.native.query" is too long — pass via file
+					</span>
+				</ResultLine>
+			}
+		/>
 	);
 }
 
 function Workbench2({ onDone }: { onDone?: () => void }) {
 	return (
-		<WorkbenchPanel onDone={onDone}>
+		<WorkbenchPanel
+			onDone={onDone}
+			latencyMs={500}
+			response={
+				<ResultLine>
+					<span style={{ color: "var(--terminal-fg)" }}>err = None</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· d.keys() = ["response", "data", "cache_hit"] · rows = None
+					</span>
+				</ResultLine>
+			}
+		>
 			<Code>
 				{[
 					"sql = ",
@@ -1341,7 +1460,20 @@ function Workbench2({ onDone }: { onDone?: () => void }) {
 
 function Workbench3({ onDone }: { onDone?: () => void }) {
 	return (
-		<WorkbenchPanel onDone={onDone}>
+		<WorkbenchPanel
+			onDone={onDone}
+			latencyMs={450}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>len(sql) = 8,412</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· wrote →{" "}
+					</span>
+					<Mono>/mnt/files/mex/sql.txt</Mono>
+				</ResultLine>
+			}
+		>
 			<Code>
 				{[
 					"sql = ",
@@ -1378,53 +1510,73 @@ function Workbench3({ onDone }: { onDone?: () => void }) {
 }
 
 function BashPanel({
-	children,
+	command,
+	response,
+	latencyMs = 500,
 	onDone,
 }: {
-	children: React.ReactNode;
+	command: React.ReactNode;
+	response: React.ReactNode;
+	latencyMs?: number;
 	onDone?: () => void;
 }) {
 	return (
-		<AgentPanel title="Remote Bash" subtitle="Composio">
-			<Stream onDone={onDone}>{children}</Stream>
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_REMOTE_BASH"
+			latencyMs={latencyMs}
+			onDone={onDone}
+			query={command}
+			response={response}
+		/>
 	);
 }
 
 function BashCatSql({ onDone }: { onDone?: () => void }) {
 	return (
-		<BashPanel onDone={onDone}>
-			<Code>{["$ cat /mnt/files/mex/sql.txt"]}</Code>
-			<div
-				className="mt-2 flex flex-col gap-0.5"
-				style={{ color: "var(--terminal-dim)" }}
-			>
-				<Code>{["SELECT provider, count() AS c"]}</Code>
-				<Code>{["FROM app_db.tool_execution_logs"]}</Code>
-				<Code>{["WHERE startTime >= now() - INTERVAL 7 DAY"]}</Code>
-				<Code>
-					{[
-						"  AND match(entityId, '^consumer-(a16b9f3b-…-4f9bc|3c3ad13b-…-39d0|607dfd3b-…-e70b| ",
-					]}
-				</Code>
-				<Code>
-					{["    …459 UIDs joined with '|', truncated for display… )-')"]}
-				</Code>
-				<Code>{["GROUP BY provider"]}</Code>
-				<Code>{["ORDER BY c DESC"]}</Code>
-				<Code>{["LIMIT 100"]}</Code>
-			</div>
-			<div className="mt-2" style={{ color: "var(--terminal-dim)" }}>
-				stdout:7 &nbsp;stderr:0 &nbsp;sandbox:…6i6j
-			</div>
-		</BashPanel>
+		<BashPanel
+			onDone={onDone}
+			latencyMs={350}
+			command={<Code>{["$ cat /mnt/files/mex/sql.txt"]}</Code>}
+			response={
+				<div
+					className="flex flex-col gap-0.5"
+					style={{ color: "var(--terminal-dim)" }}
+				>
+					<Code>{["SELECT provider, count() AS c"]}</Code>
+					<Code>{["FROM app_db.tool_execution_logs"]}</Code>
+					<Code>{["WHERE startTime >= now() - INTERVAL 7 DAY"]}</Code>
+					<Code>
+						{[
+							"  AND match(entityId, '^consumer-(a16b9f3b-…-4f9bc|3c3ad13b-…-39d0|607dfd3b-…-e70b|",
+						]}
+					</Code>
+					<Code>
+						{["    …459 UIDs joined with '|', truncated for display… )-')"]}
+					</Code>
+					<Code>{["GROUP BY provider ORDER BY c DESC LIMIT 100"]}</Code>
+					<div className="mt-1" style={{ color: "var(--terminal-dim)" }}>
+						stdout:7 &nbsp;stderr:0
+					</div>
+				</div>
+			}
+		/>
 	);
 }
 
 function Workbench4({ onDone }: { onDone?: () => void }) {
 	return (
-		<WorkbenchPanel onDone={onDone}>
+		<WorkbenchPanel
+			onDone={onDone}
+			latencyMs={700}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>
+						ERR: OK · d.keys() = [response, data]
+					</span>
+				</ResultLine>
+			}
+		>
 			<Code>
 				{[
 					"sql = ",
@@ -1481,30 +1633,26 @@ function Workbench4({ onDone }: { onDone?: () => void }) {
 
 function MetabaseDatasetBlock2({ onDone }: { onDone?: () => void }) {
 	return (
-		<AgentPanel title="Multi Execute" subtitle="Composio">
-			<Stream onDone={onDone}>
-				<div className="flex flex-col gap-2">
-					<div style={{ color: "var(--terminal-dim)" }}>
-						Executing 1 tool: <Paren>(METABASE_POST_API_DATASET)</Paren>
-					</div>
-					<ToolResult name="METABASE_POST_API_DATASET" />
-					<div>
-						<span
-							style={{ color: "var(--terminal-fg)", fontWeight: 600 }}
-						>
-							(1/1)
-						</span>{" "}
-						<span style={{ color: COL_ADD }}>succeeded</span>
-					</div>
-					<div
-						style={{ color: "var(--terminal-fg)", fontWeight: 600 }}
-					>
-						⇘ large result saved → <Mono>/mnt/files/mex/fast.json</Mono>
-					</div>
-				</div>
-			</Stream>
-			<Tail />
-		</AgentPanel>
+		<ToolCall
+			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
+			latencyMs={1200}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ tool_calls: [
+  { name: "METABASE_POST_API_DATASET",
+    args: { database: 232, type: "native",
+            native: { query: <sql.txt, 8.4 KB> } } },
+] }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>39 rows</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>· ⇘ saved →{" "}</span>
+					<Mono>/mnt/files/mex/fast.json</Mono>
+				</ResultLine>
+			}
+		/>
 	);
 }
 
@@ -1528,24 +1676,30 @@ function BashJq({ onDone }: { onDone?: () => void }) {
 		["googlecalendar", 40],
 	];
 	return (
-		<BashPanel onDone={onDone}>
-			<Code>
-				{[
-					"$ jq -r '.results[0].response.data.data.rows[] | @tsv' /mnt/files/mex/fast.json",
-				]}
-			</Code>
-			<div
-				className="mt-2 flex flex-col"
-				style={{ color: "var(--terminal-dim)" }}
-			>
-				{rows.map(([name, count]) => (
-					<Code key={name}>{[`${name}\t${count}`]}</Code>
-				))}
-			</div>
-			<div className="mt-2" style={{ color: "var(--terminal-dim)" }}>
-				stdout:39 &nbsp;stderr:0 &nbsp;sandbox:…6i6j
-			</div>
-		</BashPanel>
+		<BashPanel
+			onDone={onDone}
+			latencyMs={400}
+			command={
+				<Code>
+					{[
+						"$ jq -r '.results[0].response.data.data.rows[] | @tsv' /mnt/files/mex/fast.json",
+					]}
+				</Code>
+			}
+			response={
+				<div
+					className="flex flex-col"
+					style={{ color: "var(--terminal-dim)" }}
+				>
+					{rows.map(([name, count]) => (
+						<Code key={name}>{[`${name}\t${count}`]}</Code>
+					))}
+					<div className="mt-1" style={{ color: "var(--terminal-dim)" }}>
+						stdout:39 &nbsp;stderr:0
+					</div>
+				</div>
+			}
+		/>
 	);
 }
 
