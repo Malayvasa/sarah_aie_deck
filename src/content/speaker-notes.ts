@@ -76,9 +76,11 @@ Five tools, five UIs I have to learn and re-learn every time they ship a redesig
 - Jira has JQL.
 - Slack has its search modifiers.
 
-And it gets worse because even when these tools speak the same language, say, SQL, they don't even agree on SQL.
-
-*We don't talk about Salesforce.*`,
+And it gets worse because even when these tools speak the same language, say, SQL, they don't even agree on SQL.`,
+	},
+	salesforceSoql: {
+		section: "08 · We don't talk about Salesforce",
+		script: `*We don't talk about Salesforce.*`,
 	},
 	translationDevice: {
 		section: "09 · What a dashboard actually is",

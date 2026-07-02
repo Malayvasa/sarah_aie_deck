@@ -17,6 +17,7 @@ import { McpAnnouncedSlide } from "~/components/slides/McpAnnouncedSlide";
 import { McpProblemsSlide } from "~/components/slides/McpProblemsSlide";
 import { PostMortemSlide } from "~/components/slides/PostMortemSlide";
 import { QueryLanguagesSlide } from "~/components/slides/QueryLanguagesSlide";
+import { SalesforceSoqlSlide } from "~/components/slides/SalesforceSoqlSlide";
 import { SlackMessageSlide } from "~/components/slides/SlackMessageSlide";
 import { SparkleButtonFailSlide } from "~/components/slides/SparkleButtonFailSlide";
 import { SparkleButtonSlide } from "~/components/slides/SparkleButtonSlide";
@@ -60,6 +61,7 @@ export function DeckRoot() {
 			<SlackMessageSlide />
 			<FiveToolsSlide />
 			<QueryLanguagesSlide />
+			<SalesforceSoqlSlide />
 			<TranslationDeviceSlide />
 			<SparkleButtonSlide />
 			<SparkleButtonFailSlide />
