@@ -110,7 +110,7 @@ Not quite.`,
 
 Instead of using a sparkle button, your own agent, Claude, whom you already use every day, could generate the query for you, execute it on your behalf, and give you the answer directly.
 
-And you might be thinking, well, problem solved. This is the end of the story, right? Who needs a dashboard when MCP exists? But it is far from it, because MCP is a protocol, a channel of communication between agents and your service, and it's up to you, the app, how you choose to communicate with the agent, and it makes all the difference.`,
+And you might be thinking, well, problem solved. This is the end of the story, right? Who needs a dashboard when MCP exists? But it is far from it, because MCP is a protocol, a channel of communication between agents and your service, and it's up to you, the service, to choose how to communicate with the agent, and that makes all the difference.`,
 	},
 	mcpProblems: {
 		section: "14 · The reality of MCP",

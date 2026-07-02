@@ -59,7 +59,7 @@ Not quite.
 [Slide] Anthropic announcing MCP
 In November 2024, Anthropic announced the MCP protocol with the promise to create an "open standard for connecting AI systems with data sources," and that it did. Instead of using a sparkle button, your own agent, Claude, whom you already use every day, could generate the query for you, execute it on your behalf, and give you the answer directly.
 
-And you might be thinking, well, problem solved. This is the end of the story, right? Who needs a dashboard when MCP exists? But it is far from it, because MCP is a protocol, a channel of communication between agents and your service, and it's up to you, the app, how you choose to communicate with the agent, and it makes all the difference.
+And you might be thinking, well, problem solved. This is the end of the story, right? Who needs a dashboard when MCP exists? But it is far from it, because MCP is a protocol, a channel of communication between agents and your service, and it's up to you, the service, to choose how to communicate with the agent, and that makes all the difference.
 
 [Slide]
 If you've ever actually wired up a dozen MCP servers, you will know the reality is a mess. Three reasons.
