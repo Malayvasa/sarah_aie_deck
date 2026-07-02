@@ -17,9 +17,13 @@ import { PresenterNote } from "~/components/deck/PresenterNote";
  * both providers. Δ is Composio minus the alternative. These are the three
  * largest gaps in the eval hub's "outcome quality" table.
  *
- * `failedTask` is one real failed trial per app, pulled from that app's
- * individual report (e.g. reports/slack-report.html?raw=1) — the task
- * Composio passed and the alternative didn't, plus its root cause.
+ * `FAILURES` below is a sample of real failed trials pulled from each app's
+ * individual report (e.g. reports/slack-report.html?raw=1) — tasks Composio
+ * passed and the alternative didn't, spanning the eval hub's failure taxonomy:
+ *   no_capability        the alternative has no tool for this at all
+ *   right_tool_bad_args   it picked the right tool but called it wrong
+ *   verifier_rejected     it finished but the answer didn't check out
+ *   timeout               it never finished
  */
 
 type Comparison = {
@@ -29,44 +33,47 @@ type Comparison = {
 	composio: number;
 	alt: number;
 	delta: number;
-	failedTask: string;
-	failureReason: string;
 };
 
 const COMPARISONS: Comparison[] = [
-	{
-		slug: "slack",
-		app: "Slack",
-		altLabel: "Native MCP + Skills",
-		composio: 86,
-		alt: 36,
-		delta: 50,
-		failedTask: "Add reaction to a message",
-		failureReason: "no_capability — tool doesn't exist",
-	},
-	{
-		slug: "datadog",
-		app: "Datadog",
-		altLabel: "Native MCP + Skills",
-		composio: 100,
-		alt: 57,
-		delta: 43,
-		failedTask: "Create a tagged event",
-		failureReason: "no_capability — tool doesn't exist",
-	},
-	{
-		slug: "googledrive",
-		app: "Google Drive",
-		altLabel: "Claude AI",
-		composio: 100,
-		alt: 69,
-		delta: 31,
-		failedTask: "Get storage quota",
-		failureReason: "verifier_rejected — wrong answer",
-	},
+	{ slug: "slack", app: "Slack", altLabel: "Native MCP + Skills", composio: 86, alt: 36, delta: 50 },
+	{ slug: "datadog", app: "Datadog", altLabel: "Native MCP + Skills", composio: 100, alt: 57, delta: 43 },
+	{ slug: "googledrive", app: "Google Drive", altLabel: "Claude AI", composio: 100, alt: 69, delta: 31 },
 ];
 
-const CHART_H = 260;
+type FailureKind = "no_capability" | "right_tool_bad_args" | "verifier_rejected" | "timeout";
+
+type Failure = {
+	slug: string;
+	task: string;
+	kind: FailureKind;
+};
+
+const FAILURES: Failure[] = [
+	{ slug: "slack", task: "Add reaction to a message", kind: "no_capability" },
+	{ slug: "datadog", task: "Create a tagged event", kind: "no_capability" },
+	{ slug: "datadog", task: "Create a log alert monitor", kind: "right_tool_bad_args" },
+	{ slug: "datadog", task: "List org users, roles & log indexes", kind: "verifier_rejected" },
+	{ slug: "googledrive", task: "Get storage quota", kind: "verifier_rejected" },
+	{ slug: "googledrive", task: "Restore a file from trash", kind: "timeout" },
+];
+
+const KIND_LABEL: Record<FailureKind, string> = {
+	no_capability: "no_capability",
+	right_tool_bad_args: "bad_args",
+	verifier_rejected: "wrong_answer",
+	timeout: "timeout",
+};
+
+// Never got an answer (destructive) vs ran but got it wrong (warning).
+const KIND_TONE: Record<FailureKind, "destructive" | "warning"> = {
+	no_capability: "destructive",
+	timeout: "destructive",
+	right_tool_bad_args: "warning",
+	verifier_rejected: "warning",
+};
+
+const CHART_H = 170;
 const GRIDLINES = [0, 25, 50, 75, 100];
 
 export function NativeConnectorEvalsSlide() {
@@ -84,7 +91,7 @@ function NativeConnectorEvalsBody() {
 	const { isSlideActive } = useContext(SlideContext);
 
 	return (
-		<div className="flex flex-1 flex-col justify-center gap-8">
+		<div className="flex flex-1 flex-col justify-center gap-6">
 			<div className="flex items-end justify-between">
 				<h2 className="text-h1 text-foreground">Task success rate</h2>
 				<Legend />
@@ -98,6 +105,8 @@ function NativeConnectorEvalsBody() {
 					))}
 				</div>
 			</div>
+
+			<FailureSample active={isSlideActive} />
 		</div>
 	);
 }
@@ -147,7 +156,7 @@ function ChartGroup({
 
 	return (
 		<motion.div
-			className="flex w-[180px] flex-col items-center gap-4"
+			className="flex w-[180px] flex-col items-center gap-3"
 			initial={{ opacity: 0, y: 16 }}
 			animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
 			transition={{ duration: 0.4, ease: [0.34, 1.12, 0.6, 1], delay: groupDelay }}
@@ -193,13 +202,6 @@ function ChartGroup({
 					</div>
 				</div>
 			</div>
-
-			<div className="w-full rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
-				<div className="text-mono-xs text-foreground">✕ {c.failedTask}</div>
-				<div className="mt-0.5 text-mono-xs text-destructive">
-					{c.failureReason}
-				</div>
-			</div>
 		</motion.div>
 	);
 }
@@ -235,6 +237,41 @@ function ChartBar({
 				animate={{ height: active ? `${pct}%` : 0 }}
 				transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay }}
 			/>
+		</div>
+	);
+}
+
+function FailureSample({ active }: { active: boolean }) {
+	return (
+		<div className="border-t border-border pt-4">
+			<div className="mb-2 text-mono-xs uppercase tracking-[0.14em] text-muted-foreground">
+				Sample of tasks the alternative failed
+			</div>
+			<div className="grid grid-cols-2 gap-x-10 gap-y-1.5">
+				{FAILURES.map((f, i) => (
+					<motion.div
+						key={f.task}
+						className="flex items-center gap-2"
+						initial={{ opacity: 0, x: -8 }}
+						animate={active ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+						transition={{ duration: 0.35, delay: 0.9 + i * 0.06 }}
+					>
+						{/* eslint-disable-next-line @next/next/no-img-element */}
+						<img src={`/logos/${f.slug}.svg`} width={14} height={14} alt="" />
+						<span className="text-mono-xs text-foreground">✕ {f.task}</span>
+						<span
+							className={
+								"ml-auto shrink-0 rounded-full px-2 py-0.5 text-mono-xs " +
+								(KIND_TONE[f.kind] === "warning"
+									? "bg-warning/15 text-warning"
+									: "bg-destructive/15 text-destructive")
+							}
+						>
+							{KIND_LABEL[f.kind]}
+						</span>
+					</motion.div>
+				))}
+			</div>
 		</div>
 	);
 }
