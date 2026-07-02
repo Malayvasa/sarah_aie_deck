@@ -7,13 +7,15 @@ import { DeckSlide, Kicker } from "~/components/deck/DeckSlide";
 import { PresenterNote } from "~/components/deck/PresenterNote";
 
 /**
- * Slide — "Even 'native' isn't native." Three worst-gap rows pulled from
- * Composio's own eval hub (composio vs each app's native MCP/CLI/connector,
- * same tasks): https://ctx.composio.io/Jayesh/evals/native.html
+ * Slide — "Even 'native' isn't native." Grouped bar chart of the three
+ * worst-gap rows pulled from Composio's own eval hub (composio vs each app's
+ * Native MCP + Skills, or in Google Drive's case Claude's own connector, on
+ * identical tasks): https://ctx.composio.io/Jayesh/evals/native.html
  *
- * Success % is the deterministic-verifier pass rate; Δ is Composio minus the
- * alternative. These are the three largest gaps in the "outcome quality"
- * table, i.e. where the native option struggled most.
+ * The metric is task success rate: share of runs that completed end-to-end
+ * and passed a deterministic verifier, same held-out tasks, same model, for
+ * both providers. Δ is Composio minus the alternative. These are the three
+ * largest gaps in the eval hub's "outcome quality" table.
  */
 
 type Comparison = {
@@ -26,10 +28,13 @@ type Comparison = {
 };
 
 const COMPARISONS: Comparison[] = [
-	{ slug: "slack", app: "Slack", altLabel: "Slack (native)", composio: 86, alt: 36, delta: 50 },
-	{ slug: "datadog", app: "Datadog", altLabel: "Datadog (native)", composio: 100, alt: 57, delta: 43 },
+	{ slug: "slack", app: "Slack", altLabel: "Native MCP + Skills", composio: 86, alt: 36, delta: 50 },
+	{ slug: "datadog", app: "Datadog", altLabel: "Native MCP + Skills", composio: 100, alt: 57, delta: 43 },
 	{ slug: "googledrive", app: "Google Drive", altLabel: "Claude AI", composio: 100, alt: 69, delta: 31 },
 ];
+
+const CHART_H = 260;
+const GRIDLINES = [0, 25, 50, 75, 100];
 
 export function NativeConnectorEvalsSlide() {
 	return (
@@ -46,94 +51,160 @@ function NativeConnectorEvalsBody() {
 	const { isSlideActive } = useContext(SlideContext);
 
 	return (
-		<div className="flex flex-1 flex-col justify-center gap-10">
-			<div>
-				<Kicker tone="brand">Same tasks, same models</Kicker>
-				<h2 className="mt-2 max-w-[20ch] text-h1 text-foreground">
-					Even &ldquo;native&rdquo; isn&rsquo;t native.
-				</h2>
+		<div className="flex flex-1 flex-col justify-center gap-8">
+			<div className="flex items-end justify-between">
+				<div>
+					<Kicker tone="brand">Same tasks, same model</Kicker>
+					<h2 className="mt-2 max-w-[24ch] text-h1 text-foreground">
+						Even &ldquo;native&rdquo; isn&rsquo;t native.
+					</h2>
+					<p className="mt-3 max-w-[52ch] text-body text-muted-foreground">
+						Task success rate — share of runs that finished end-to-end and
+						passed a deterministic verifier, same held-out tasks, same model,
+						per provider.
+					</p>
+				</div>
+				<Legend />
 			</div>
 
-			<div className="grid grid-cols-3 gap-6">
-				{COMPARISONS.map((c, i) => (
-					<motion.div
-						key={c.slug}
-						initial={{ opacity: 0, y: 24 }}
-						animate={
-							isSlideActive ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }
-						}
-						transition={{
-							duration: 0.5,
-							ease: [0.34, 1.12, 0.6, 1],
-							delay: 0.15 * i,
-						}}
-					>
-						<ComparisonCard c={c} active={isSlideActive} delay={0.15 * i} />
-					</motion.div>
-				))}
+			<div className="flex items-end gap-16 pl-12">
+				<YAxis />
+				<div className="flex flex-1 justify-between">
+					{COMPARISONS.map((c, i) => (
+						<ChartGroup key={c.slug} c={c} active={isSlideActive} index={i} />
+					))}
+				</div>
 			</div>
 		</div>
 	);
 }
 
-function ComparisonCard({
+function Legend() {
+	return (
+		<div className="flex items-center gap-4 pb-1">
+			<span className="flex items-center gap-1.5 text-mono-xs text-muted-foreground">
+				<span className="size-2.5 rounded-[2px] bg-success" />
+				Composio
+			</span>
+			<span className="flex items-center gap-1.5 text-mono-xs text-muted-foreground">
+				<span className="size-2.5 rounded-[2px] bg-destructive" />
+				Alternative
+			</span>
+		</div>
+	);
+}
+
+function YAxis() {
+	return (
+		<div
+			className="relative flex shrink-0 flex-col justify-between text-mono-xs text-muted-foreground"
+			style={{ height: CHART_H }}
+		>
+			{GRIDLINES.slice()
+				.reverse()
+				.map((g) => (
+					<span key={g} className="-translate-y-1/2">
+						{g}%
+					</span>
+				))}
+		</div>
+	);
+}
+
+function ChartGroup({
 	c,
 	active,
-	delay,
+	index,
 }: {
 	c: Comparison;
 	active: boolean;
-	delay: number;
+	index: number;
 }) {
+	const groupDelay = 0.15 * index;
+
 	return (
-		<div className="flex flex-col gap-5 rounded-xl border border-border bg-card p-6">
-			<div className="flex items-center gap-3">
+		<motion.div
+			className="flex w-[180px] flex-col items-center gap-4"
+			initial={{ opacity: 0, y: 16 }}
+			animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+			transition={{ duration: 0.4, ease: [0.34, 1.12, 0.6, 1], delay: groupDelay }}
+		>
+			<span className="rounded-full bg-success/15 px-2.5 py-1 text-mono-xs text-success">
+				+{c.delta}
+			</span>
+
+			<div
+				className="relative flex w-full items-end justify-center gap-4"
+				style={{ height: CHART_H }}
+			>
+				{/* Gridlines */}
+				{GRIDLINES.map((g) => (
+					<span
+						key={g}
+						className="pointer-events-none absolute inset-x-0 border-t border-border/60"
+						style={{ bottom: `${g}%` }}
+					/>
+				))}
+
+				<ChartBar
+					pct={c.composio}
+					tone="success"
+					active={active}
+					delay={groupDelay + 0.2}
+				/>
+				<ChartBar
+					pct={c.alt}
+					tone="destructive"
+					active={active}
+					delay={groupDelay + 0.35}
+				/>
+			</div>
+
+			<div className="flex items-center gap-2">
 				{/* eslint-disable-next-line @next/next/no-img-element */}
-				<img src={`/logos/${c.slug}.svg`} width={28} height={28} alt="" />
-				<div>
-					<div className="text-h3 text-foreground">{c.app}</div>
+				<img src={`/logos/${c.slug}.svg`} width={20} height={20} alt="" />
+				<div className="leading-tight">
+					<div className="text-body-sm text-foreground">{c.app}</div>
 					<div className="text-mono-xs text-muted-foreground">
 						vs {c.altLabel}
 					</div>
 				</div>
-				<span className="ml-auto rounded-full bg-success/15 px-2.5 py-1 text-mono-xs text-success">
-					+{c.delta}
-				</span>
 			</div>
-
-			<Bar label="Composio" pct={c.composio} tone="success" active={active} delay={delay + 0.25} />
-			<Bar label={c.altLabel} pct={c.alt} tone="destructive" active={active} delay={delay + 0.4} />
-		</div>
+		</motion.div>
 	);
 }
 
-function Bar({
-	label,
+function ChartBar({
 	pct,
 	tone,
 	active,
 	delay,
 }: {
-	label: string;
 	pct: number;
 	tone: "success" | "destructive";
 	active: boolean;
 	delay: number;
 }) {
 	return (
-		<div className="flex flex-col gap-1.5">
-			<div className="flex items-baseline justify-between">
-				<span className="text-mono-sm text-muted-foreground">{label}</span>
-				<span className="text-mono-sm text-foreground">{pct}%</span>
-			</div>
-			<div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-				<motion.div
-					className={tone === "success" ? "h-full bg-success" : "h-full bg-destructive"}
-					initial={{ width: "0%" }}
-					animate={{ width: active ? `${pct}%` : "0%" }}
-					transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay }}
-				/>
-			</div>
+		<div className="relative flex h-full w-14 flex-col items-center justify-end">
+			<motion.span
+				className="mb-1.5 text-mono-sm text-foreground"
+				initial={{ opacity: 0 }}
+				animate={{ opacity: active ? 1 : 0 }}
+				transition={{ duration: 0.3, delay: delay + 0.5 }}
+			>
+				{pct}%
+			</motion.span>
+			<motion.div
+				className={
+					tone === "success"
+						? "w-full rounded-t-sm bg-success"
+						: "w-full rounded-t-sm bg-destructive"
+				}
+				initial={{ height: 0 }}
+				animate={{ height: active ? `${pct}%` : 0 }}
+				transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay }}
+			/>
 		</div>
 	);
 }
