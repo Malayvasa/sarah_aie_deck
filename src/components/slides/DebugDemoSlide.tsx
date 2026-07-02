@@ -27,7 +27,7 @@ export function DebugDemoSlide() {
 		<DeckSlide padded={false}>
 			<DebugDemoBody />
 			<Notes>
-				<PresenterNote noteKey="debugDemo" />
+				<PresenterNote noteKey="debugDemo" steps={3} />
 			</Notes>
 		</DeckSlide>
 	);
@@ -174,8 +174,10 @@ function Sequence({ children }: { children: React.ReactNode }) {
 }
 
 function DebugDemoBody() {
-	// 7 advances → 8 revealed states (initial + 7 keystrokes).
-	const { reached, placeholder } = useStepMotion(7);
+	// 3 advances → 4 revealed states (initial + 3 keystrokes). Matches
+	// Sarah's 3 spoken beats in the debugDemo script: Composio Search →
+	// parallel data pull + codebase scan → identify + fix + PR.
+	const { reached, placeholder } = useStepMotion(3);
 
 	return (
 		<div className="flex h-full w-full items-center justify-center bg-black">
@@ -195,6 +197,8 @@ function DebugDemoBody() {
 					<div className="flex flex-col gap-3 px-1 text-[13px]">
 						<Banner />
 						<UserPrompt />
+
+						{/* Beat 1 — Composio Search states the tasks. */}
 						{reached(0) && (
 							<Fade>
 								<Sequence>
@@ -207,6 +211,8 @@ function DebugDemoBody() {
 								</Sequence>
 							</Fade>
 						)}
+
+						{/* Beat 2 — Parallel data pull, then scanning the codebase. */}
 						{reached(1) && (
 							<Fade>
 								<Sequence>
@@ -217,12 +223,6 @@ function DebugDemoBody() {
 										information.
 									</AssistantText>
 									<MultiExecuteBlock1 />
-								</Sequence>
-							</Fade>
-						)}
-						{reached(2) && (
-							<Fade>
-								<Sequence>
 									<AssistantText>
 										I see the issue now — the user searched for "(prod)"
 										which is invalid regex syntax, and the snippet.search
@@ -232,12 +232,6 @@ function DebugDemoBody() {
 										substring match instead. Let me look at what's in the
 										local repo to understand the current implementation.
 									</AssistantText>
-								</Sequence>
-							</Fade>
-						)}
-						{reached(3) && (
-							<Fade>
-								<Sequence>
 									<ShellUnit
 										latencyMs={220}
 										command={
@@ -272,7 +266,9 @@ main`}
 								</Sequence>
 							</Fade>
 						)}
-						{reached(4) && (
+
+						{/* Beat 3 — Identify root cause, fix, commit, PR. */}
+						{reached(2) && (
 							<Fade>
 								<Sequence>
 									<AssistantText>
@@ -282,12 +278,6 @@ main`}
 										pushing it to open a draft PR.
 									</AssistantText>
 									<EditUnit path="~/GitHub/test-app/src/server/snippets.filter.ts" />
-								</Sequence>
-							</Fade>
-						)}
-						{reached(5) && (
-							<Fade>
-								<Sequence>
 									<ShellUnit
 										latencyMs={2500}
 										command={
@@ -311,12 +301,6 @@ branch tracks origin/fix/snippet-search-regex-escape`}
 											</CodeBlock>
 										}
 									/>
-								</Sequence>
-							</Fade>
-						)}
-						{reached(6) && (
-							<Fade>
-								<Sequence>
 									<MultiExecuteBlock2 />
 									<FinalReport />
 								</Sequence>
@@ -539,7 +523,7 @@ function MultiExecuteBlock1({ onDone }: { onDone?: () => void }) {
   { name: "SLACK_FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION",
     args: { permalink: "…/p1782959651275229" } },
   { name: "SENTRY_RETRIEVE_PROJECT_ISSUES_LIST",
-    args: { org: "composio-ly", project: "sarah-demo",
+    args: { org: "composio", project: "sarah-demo",
             query: "is:unresolved" } },
   { name: "DATADOG_SEARCH_LOGS",
     args: { service: "agentic-snippet-board",
@@ -554,7 +538,9 @@ function MultiExecuteBlock1({ onDone }: { onDone?: () => void }) {
 						· thread parsed · 1 sentry issue{" "}
 					</span>
 					<Mono>SARAH-DEMO-1</Mono>{" "}
-					<span style={{ color: "var(--terminal-dim)" }}>· 14 datadog matches</span>
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· 14 datadog matches
+					</span>
 				</ResultLine>
 			}
 		/>
@@ -747,7 +733,7 @@ function UserPrompt() {
 				https://composioworkspace.slack.com/archives/C0BEMBK5XDG/p1782959651275229
 			</Link>{" "}
 			and use sentry &amp; datadog to find the error msg (datadog
-			service:agentic-snippet-board, sentry org composio-ly, project
+			service:agentic-snippet-board, sentry org composio, project
 			sarah-demo), fine the root cause &amp; create a draft PR with the fix
 		</div>
 	);
@@ -890,7 +876,7 @@ function SearchToolsPlan() {
 					name="Sentry"
 					count={6}
 					tags={["GET_ORG", "GET_PROJECT_LIST", "RETRIEVE_ISSUES"]}
-					hint="org: composio-ly / sarah-demo"
+					hint="org: composio / sarah-demo"
 				/>
 				<PlanAppRow
 					name="Datadog"
@@ -1481,7 +1467,7 @@ function FinalReport({ onDone }: { onDone?: () => void }) {
 				searching <Mono>"(prod)"</Mono>.
 			</div>
 			<div>
-				- <b>Sentry</b> <Mono>composio-ly/sarah-demo</Mono> →{" "}
+				- <b>Sentry</b> <Mono>composio/sarah-demo</Mono> →{" "}
 				<Link>SARAH-DEMO-1</Link>: <Mono>TRPCError:</Mono>{" "}
 				<Mono>Invalid regular expression: /[oops/i: Unterminated character class</Mono>{" "}
 				— 14 events, escalating, culprit <Mono>GET /api/trpc/[trpc]</Mono>.

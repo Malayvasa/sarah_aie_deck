@@ -151,6 +151,38 @@ Then, once it identifies the root cause, it creates a PR with the fix in **less 
 I did not have to build a workflow or write a skill to teach it how to do this. This is literally just Claude using Composio's MCP.
 
 It has become so much easier to do things through Composio that opening up Claude is muscle memory, and some apps I used to open every day are slowly becoming unfamiliar to me.`,
+		segments: [
+			{
+				atStep: 0,
+				section: "18 · Setup",
+				script: `Let me show you the exact bug report from earlier and a demo of how I would solve this in 2026.
+
+I would have my Claude connected to the Composio MCP.
+
+So what I did here is I just copied and pasted the link to the message from Slack, asked it to use Sentry & Datadog to find the root cause & create a draft PR with the fix — nice and simple.`,
+			},
+			{
+				atStep: 1,
+				section: "18 · Beat 1 · Composio Search",
+				script: `The first thing it does is it calls the **Composio Search** tool to state the task it wants to accomplish — in this case it states three: it wants to fetch Slack messages, search Sentry issues, and search Datadog logs.
+
+Composio returns the correct tools it needs with a plan on how to use them — for example, for Slack it recommends the agent should first find the channel ID it's trying to pull from before it attempts to pull the message.`,
+			},
+			{
+				atStep: 2,
+				section: "18 · Beat 2 · Parallel data pull",
+				script: `Now, armed with all the context it needs, Claude begins pulling from data sources in parallel — Datadog, Sentry, Posthog, and scanning the codebase.`,
+			},
+			{
+				atStep: 3,
+				section: "18 · Beat 3 · Fix + PR",
+				script: `Then, once it identifies the root cause, it creates a PR with the fix in **less than 5 minutes**.
+
+I did not have to build a workflow or write a skill to teach it how to do this. This is literally just Claude using Composio's MCP.
+
+It has become so much easier to do things through Composio that opening up Claude is muscle memory, and some apps I used to open every day are slowly becoming unfamiliar to me.`,
+			},
+		],
 	},
 	nativeConnectorEvals: {
 		section: "18b · The eval numbers",
@@ -187,6 +219,54 @@ Once it has the user IDs and a feel for the data, it uses the Composio Sandbox t
 Then it executes, and BAM. We can see the more popular toolkits amongst this user persona in less than a few minutes, with data pulled from both Posthog and Metabase.
 
 If you want to play with the live version, come find me or go to the Composio booth.`,
+		segments: [
+			{
+				atStep: 0,
+				section: "20 · Setup",
+				script: `Let me show you what I mean.
+
+So let's say I want to dig into some user data and see a distribution of what "vertical" my users select during onboarding. I can simply ask Claude for it.`,
+			},
+			{
+				atStep: 1,
+				section: "20 · Beat 1 · Composio Search (Q1)",
+				script: `Again it will run the Composio Search tool,`,
+			},
+			{
+				atStep: 2,
+				section: "20 · Beat 2 · Posthog query → vertical distribution",
+				script: `then write and execute the query in Posthog, nice and simple.`,
+			},
+			{
+				atStep: 3,
+				section: "20 · Beat 3 · Second prompt + Composio Search (Q2)",
+				script: `But now, what if I wanted to see which apps (we call them toolkits) are the most popular amongst those who selected Ecommerce. Well, the tool calling data exists in Metabase. Let's see if Claude can figure out how to query large amounts of data across these two platforms.
+
+Once again it uses Composio Search,`,
+			},
+			{
+				atStep: 4,
+				section: "20 · Beat 4 · Posthog user-ids (save to grow.json)",
+				script: `Then, it queries the user IDs of those who selected Ecommerce from Posthog and saves the results without loading the full result into its context.`,
+			},
+			{
+				atStep: 5,
+				section: "20 · Beat 5 · Metabase discovery",
+				script: `Then it makes some queries to find the correct project in Metabase, to get the database schema, to sample some data and get a feel for how things are structured.`,
+			},
+			{
+				atStep: 6,
+				section: "20 · Beat 6 · Composio Sandbox codegen",
+				script: `Once it has the user IDs and a feel for the data, it uses the Composio Sandbox to write some code to dynamically generate an SQL query with a regex string to search for those user IDs — again without loading the entire thing into its context.`,
+			},
+			{
+				atStep: 7,
+				section: "20 · Beat 7 · BAM · toolkit result",
+				script: `Then it executes, and BAM. We can see the more popular toolkits amongst this user persona in less than a few minutes, with data pulled from both Posthog and Metabase.
+
+If you want to play with the live version, come find me or go to the Composio booth.`,
+			},
+		],
 	},
 	axIsNewUx: {
 		section: "21 · Close",

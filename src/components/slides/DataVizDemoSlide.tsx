@@ -27,7 +27,7 @@ export function DataVizDemoSlide() {
 		<DeckSlide padded={false}>
 			<DataVizDemoBody />
 			<Notes>
-				<PresenterNote noteKey="dataVizDemo" />
+				<PresenterNote noteKey="dataVizDemo" steps={7} />
 			</Notes>
 		</DeckSlide>
 	);
@@ -174,8 +174,11 @@ function Sequence({ children }: { children: React.ReactNode }) {
 }
 
 function DataVizDemoBody() {
-	// 8 advances → 9 revealed states (initial + 8 keystrokes).
-	const { reached, placeholder } = useStepMotion(8);
+	// 7 advances → 8 revealed states (initial + 7 keystrokes). Matches
+	// Sarah's dataVizDemo script beats: Composio Search → Posthog query
+	// → 2nd prompt + Metabase search → Posthog user-ids → Metabase discovery
+	// → Sandbox codegen → final execute + BAM.
+	const { reached, placeholder } = useStepMotion(7);
 
 	return (
 		<div className="flex h-full w-full items-center justify-center bg-black">
@@ -198,6 +201,7 @@ function DataVizDemoBody() {
 							give me the percentages of the "vertical" users selected during
 							onboarding this week (only percentages no counts)
 						</UserPrompt>
+						{/* Beat 1 — Composio Search states the tasks (Q1). */}
 						{reached(0) && (
 							<Fade>
 								<Sequence>
@@ -206,6 +210,8 @@ function DataVizDemoBody() {
 								</Sequence>
 							</Fade>
 						)}
+
+						{/* Beat 2 — Posthog query executes → vertical distribution. */}
 						{reached(1) && (
 							<Fade>
 								<Sequence>
@@ -215,6 +221,8 @@ function DataVizDemoBody() {
 								</Sequence>
 							</Fade>
 						)}
+
+						{/* Beat 3 — Second prompt + Composio Search for Metabase tools. */}
 						{reached(2) && (
 							<Fade>
 								<Sequence>
@@ -225,18 +233,23 @@ function DataVizDemoBody() {
 										user id formatted you can match on
 										consumer-*-&lt;userid&gt; via metabase via composio
 									</UserPrompt>
+									<AssistantText>thinking...</AssistantText>
+									<MetabaseSearchBlock />
 								</Sequence>
 							</Fade>
 						)}
+
+						{/* Beat 4 — Query Posthog for the user ids, save to grow.json. */}
 						{reached(3) && (
 							<Fade>
 								<Sequence>
 									<AssistantText>thinking...</AssistantText>
-									<MetabaseSearchBlock />
 									<PosthogLargeQueryBlock />
 								</Sequence>
 							</Fade>
 						)}
+
+						{/* Beat 5 — Metabase discovery: find project, schema, sample. */}
 						{reached(4) && (
 							<Fade>
 								<Sequence>
@@ -247,6 +260,8 @@ function DataVizDemoBody() {
 								</Sequence>
 							</Fade>
 						)}
+
+						{/* Beat 6 — Composio Sandbox writes + iterates on the SQL. */}
 						{reached(5) && (
 							<Fade>
 								<Sequence>
@@ -256,25 +271,21 @@ function DataVizDemoBody() {
 									<AssistantText>thinking...</AssistantText>
 									<Workbench2 />
 									<Workbench3 />
-								</Sequence>
-							</Fade>
-						)}
-						{reached(6) && (
-							<Fade>
-								<Sequence>
 									<AssistantText>thinking...</AssistantText>
 									<BashCatSql />
 									<AssistantText>thinking...</AssistantText>
 									<Workbench4 />
-									<AssistantText>thinking...</AssistantText>
-									<MetabaseDatasetBlock2 />
-									<BashJq />
 								</Sequence>
 							</Fade>
 						)}
-						{reached(7) && (
+
+						{/* Beat 7 — BAM: final execute + extract + toolkit result. */}
+						{reached(6) && (
 							<Fade>
 								<Sequence>
+									<AssistantText>thinking...</AssistantText>
+									<MetabaseDatasetBlock2 />
+									<BashJq />
 									<AssistantText>thinking...</AssistantText>
 									<ToolkitTableResult />
 								</Sequence>
