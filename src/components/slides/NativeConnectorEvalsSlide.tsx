@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { useContext } from "react";
 import { Notes, SlideContext } from "spectacle";
-import { DeckSlide, Kicker } from "~/components/deck/DeckSlide";
+import { DeckSlide } from "~/components/deck/DeckSlide";
 import { PresenterNote } from "~/components/deck/PresenterNote";
 
 /**
@@ -16,6 +16,10 @@ import { PresenterNote } from "~/components/deck/PresenterNote";
  * and passed a deterministic verifier, same held-out tasks, same model, for
  * both providers. Δ is Composio minus the alternative. These are the three
  * largest gaps in the eval hub's "outcome quality" table.
+ *
+ * `failedTask` is one real failed trial per app, pulled from that app's
+ * individual report (e.g. reports/slack-report.html?raw=1) — the task
+ * Composio passed and the alternative didn't, plus its root cause.
  */
 
 type Comparison = {
@@ -25,12 +29,41 @@ type Comparison = {
 	composio: number;
 	alt: number;
 	delta: number;
+	failedTask: string;
+	failureReason: string;
 };
 
 const COMPARISONS: Comparison[] = [
-	{ slug: "slack", app: "Slack", altLabel: "Native MCP + Skills", composio: 86, alt: 36, delta: 50 },
-	{ slug: "datadog", app: "Datadog", altLabel: "Native MCP + Skills", composio: 100, alt: 57, delta: 43 },
-	{ slug: "googledrive", app: "Google Drive", altLabel: "Claude AI", composio: 100, alt: 69, delta: 31 },
+	{
+		slug: "slack",
+		app: "Slack",
+		altLabel: "Native MCP + Skills",
+		composio: 86,
+		alt: 36,
+		delta: 50,
+		failedTask: "Add reaction to a message",
+		failureReason: "no_capability — tool doesn't exist",
+	},
+	{
+		slug: "datadog",
+		app: "Datadog",
+		altLabel: "Native MCP + Skills",
+		composio: 100,
+		alt: 57,
+		delta: 43,
+		failedTask: "Create a tagged event",
+		failureReason: "no_capability — tool doesn't exist",
+	},
+	{
+		slug: "googledrive",
+		app: "Google Drive",
+		altLabel: "Claude AI",
+		composio: 100,
+		alt: 69,
+		delta: 31,
+		failedTask: "Get storage quota",
+		failureReason: "verifier_rejected — wrong answer",
+	},
 ];
 
 const CHART_H = 260;
@@ -53,17 +86,7 @@ function NativeConnectorEvalsBody() {
 	return (
 		<div className="flex flex-1 flex-col justify-center gap-8">
 			<div className="flex items-end justify-between">
-				<div>
-					<Kicker>The eval numbers</Kicker>
-					<h2 className="mt-2 max-w-[24ch] text-h1 text-foreground">
-						Task success rate
-					</h2>
-					<p className="mt-3 max-w-[52ch] text-body text-muted-foreground">
-						Share of runs that finished end-to-end and passed a
-						deterministic verifier — same held-out tasks, same model, per
-						provider.
-					</p>
-				</div>
+				<h2 className="text-h1 text-foreground">Task success rate</h2>
 				<Legend />
 			</div>
 
@@ -168,6 +191,13 @@ function ChartGroup({
 					<div className="text-mono-xs text-muted-foreground">
 						vs {c.altLabel}
 					</div>
+				</div>
+			</div>
+
+			<div className="w-full rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
+				<div className="text-mono-xs text-foreground">✕ {c.failedTask}</div>
+				<div className="mt-0.5 text-mono-xs text-destructive">
+					{c.failureReason}
 				</div>
 			</div>
 		</motion.div>
