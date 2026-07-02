@@ -54,14 +54,14 @@ function NativeConnectorEvalsBody() {
 		<div className="flex flex-1 flex-col justify-center gap-8">
 			<div className="flex items-end justify-between">
 				<div>
-					<Kicker tone="brand">Same tasks, same model</Kicker>
+					<Kicker>The eval numbers</Kicker>
 					<h2 className="mt-2 max-w-[24ch] text-h1 text-foreground">
-						Even &ldquo;native&rdquo; isn&rsquo;t native.
+						Task success rate
 					</h2>
 					<p className="mt-3 max-w-[52ch] text-body text-muted-foreground">
-						Task success rate — share of runs that finished end-to-end and
-						passed a deterministic verifier, same held-out tasks, same model,
-						per provider.
+						Share of runs that finished end-to-end and passed a
+						deterministic verifier — same held-out tasks, same model, per
+						provider.
 					</p>
 				</div>
 				<Legend />
@@ -88,7 +88,7 @@ function Legend() {
 			</span>
 			<span className="flex items-center gap-1.5 text-mono-xs text-muted-foreground">
 				<span className="size-2.5 rounded-[2px] bg-destructive" />
-				Alternative
+				Native MCP + Skills
 			</span>
 		</div>
 	);
