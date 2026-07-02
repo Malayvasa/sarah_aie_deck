@@ -15,6 +15,7 @@ import { FiveToolsSlide } from "~/components/slides/FiveToolsSlide";
 import { IsolatedAppsSlide } from "~/components/slides/IsolatedAppsSlide";
 import { McpAnnouncedSlide } from "~/components/slides/McpAnnouncedSlide";
 import { McpProblemsSlide } from "~/components/slides/McpProblemsSlide";
+import { NativeConnectorEvalsSlide } from "~/components/slides/NativeConnectorEvalsSlide";
 import { PostMortemSlide } from "~/components/slides/PostMortemSlide";
 import { QueryLanguagesSlide } from "~/components/slides/QueryLanguagesSlide";
 import { SalesforceSoqlSlide } from "~/components/slides/SalesforceSoqlSlide";
@@ -72,6 +73,7 @@ export function DeckRoot() {
 			<ContextOverloadSlide />
 			<IsolatedAppsSlide />
 			<DebugDemoSlide />
+			<NativeConnectorEvalsSlide />
 			<ComposioVisualizationSlide />
 			<DataVizDemoSlide />
 			<DashboardIsDeadCallbackSlide />

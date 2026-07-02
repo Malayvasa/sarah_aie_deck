@@ -148,6 +148,14 @@ I did not have to build a workflow or write a skill to teach it how to do this. 
 
 It has become so much easier to do things through Composio that opening up Claude is muscle memory, and some apps I used to open every day are slowly becoming unfamiliar to me. But why? What makes this so different from the traditional MCP experience?`,
 	},
+	nativeConnectorEvals: {
+		section: "18b · The eval numbers",
+		script: `And this isn't a vibe — we ran the same tasks, on the same models, against each app's own native MCP server, CLI, or connector.
+
+Slack's native connector passes **36%** of the time. Datadog's, **57%**. Even Claude's own Google Drive connector only hits **69%**. Composio clears 100%, or close to it, on all three.
+
+**"Native" doesn't mean it works. It just means it's the one they shipped.**`,
+	},
 	composioVisualization: {
 		section: "19 · What Composio is building",
 		script: `It's because, at Composio, we are developing a **brand-new interface specifically for agents.**
