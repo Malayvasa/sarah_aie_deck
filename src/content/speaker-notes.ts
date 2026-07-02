@@ -170,8 +170,8 @@ So let's say I want to do some data digging and visualize our retention rate. Ou
 
 Workbench becomes even more powerful in long-running and complex tasks.`,
 	},
-	dashboardIsDeadCallback: {
-		section: "21 · The dashboard has died",
+	axIsNewUx: {
+		section: "21 · Close",
 		script: `And so, the dashboard has died.
 
 I am thinking more and more about what this means for the future. Many startups have begun making their landing pages and websites "AI-friendly" for SEO/GEO purposes, but so few have really prepared their products for use by agents.
@@ -182,11 +182,9 @@ But now we are getting requests from startups, saying their clients are begging 
 
 The humans are tired of dashboards, their agents are tired of MCP.
 
-This is a lesson for everyone building anything. **You are now serving a new species of user.** It doesn't have eyes. It won't click your sparkle button. It shows up with a goal and a set of tools, and it judges you on exactly one thing — whether it can get the job done.`,
-	},
-	axIsNewUx: {
-		section: "22 · Close",
-		script: `**AX is the new UX.**`,
+This is a lesson for everyone building anything. **You are now serving a new species of user.** It doesn't have eyes. It won't click your sparkle button. It shows up with a goal and a set of tools, and it judges you on exactly one thing — whether it can get the job done.
+
+**AX is the new UX.**`,
 	},
 } as const satisfies Record<string, SpeakerNote>;
 

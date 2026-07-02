@@ -7,7 +7,6 @@ import { AxIsNewUxSlide } from "~/components/slides/AxIsNewUxSlide";
 import { ComposioDashboardSlide } from "~/components/slides/ComposioDashboardSlide";
 import { ComposioVisualizationSlide } from "~/components/slides/ComposioVisualizationSlide";
 import { ContextOverloadSlide } from "~/components/slides/ContextOverloadSlide";
-import { DashboardIsDeadCallbackSlide } from "~/components/slides/DashboardIsDeadCallbackSlide";
 import { DatadogConfessionSlide } from "~/components/slides/DatadogConfessionSlide";
 import { DataVizDemoSlide } from "~/components/slides/DataVizDemoSlide";
 import { DebugDemoSlide } from "~/components/slides/DebugDemoSlide";
@@ -76,7 +75,6 @@ export function DeckRoot() {
 			<NativeConnectorEvalsSlide />
 			<ComposioVisualizationSlide />
 			<DataVizDemoSlide />
-			<DashboardIsDeadCallbackSlide />
 			<AxIsNewUxSlide />
 		</Deck>
 	);
