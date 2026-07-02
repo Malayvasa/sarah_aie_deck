@@ -16,14 +16,14 @@ const SPARKLE_GRADIENT =
 export function AxIsNewUxSlide() {
 	return (
 		<DeckSlide>
-			<div className="flex h-full w-full items-center justify-center">
+			<div className="flex h-full w-full flex-col items-center justify-center gap-28">
 				<style>{`
 					@keyframes _ax_hue_slide {
 						from { background-position: 0% 50%; }
 						to   { background-position: 300% 50%; }
 					}
 				`}</style>
-				<h1 className="max-w-[22ch] font-normal font-mono text-[112px] leading-[1.05] tracking-tight text-foreground">
+				<h1 className="max-w-[22ch] text-center font-normal font-mono text-[112px] leading-[1.05] tracking-tight text-foreground">
 					<span
 						className="inline-block bg-clip-text text-transparent"
 						style={{
@@ -38,6 +38,21 @@ export function AxIsNewUxSlide() {
 					</span>{" "}
 					is the new UX.
 				</h1>
+				<div
+					className="flex items-start font-mono text-[26px] leading-[1.35] text-foreground"
+					style={{ gap: 160 }}
+				>
+					<div className="text-left">
+						<div>Sarah Simionescu · @sarahfim</div>
+						<div className="text-muted-foreground">
+							Member of Technical Staff, Composio
+						</div>
+					</div>
+					<div className="text-left">
+						<div>Malay Vasa · @malayvasa</div>
+						<div className="text-muted-foreground">Head of Design, Composio</div>
+					</div>
+				</div>
 			</div>
 			<Notes>
 				<PresenterNote noteKey="axIsNewUx" />

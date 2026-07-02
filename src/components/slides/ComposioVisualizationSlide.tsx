@@ -1,11 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Book, Search, Sparkles } from "lucide-react";
+import { Book, Search } from "lucide-react";
 import { useContext } from "react";
 import { Notes, SlideContext } from "spectacle";
 import { DeckSlide } from "~/components/deck/DeckSlide";
 import { PresenterNote } from "~/components/deck/PresenterNote";
+import { TerminalWindow } from "~/components/terminal-kit";
 
 /**
  * Slide 19 — the translation panel. Two dark cards side-by-side.
@@ -262,263 +263,356 @@ function EndpointRow({ endpoint }: { endpoint: Endpoint }) {
 	);
 }
 
-/* ─── Right: Composio tools with agent-relevant metadata ────────────────── */
+/* ─── Right: Composio meta-tools inside the pi terminal shell ───────────── */
 
-type Tool = {
+type MetaTool = {
 	name: string;
 	summary: string;
-	params: number;
-	tokens: number;
-	scopes?: string[];
-	requires?: string[];
+	req: string;
+	res: React.ReactNode;
 };
 
-const TOOL_SECTIONS: Array<{ heading: string; tools: Tool[] }> = [
+const META_TOOLS: MetaTool[] = [
 	{
-		heading: "Pull requests",
-		tools: [
-			{
-				name: "GITHUB_LIST_PULL_REQUESTS",
-				summary: "List PRs with state, base, head, sort filters",
-				params: 8,
-				tokens: 214,
-				scopes: ["repo:read"],
-			},
-			{
-				name: "GITHUB_CREATE_A_PULL_REQUEST",
-				summary: "Open a PR from head into base",
-				params: 7,
-				tokens: 268,
-				scopes: ["repo:write"],
-				requires: ["GITHUB_GET_A_BRANCH", "GITHUB_COMPARE_TWO_COMMITS"],
-			},
-			{
-				name: "GITHUB_GET_A_PULL_REQUEST",
-				summary: "Fetch a single PR by number",
-				params: 3,
-				tokens: 128,
-				scopes: ["repo:read"],
-			},
-			{
-				name: "GITHUB_UPDATE_A_PULL_REQUEST",
-				summary: "Edit title, body, base, or state of an open PR",
-				params: 8,
-				tokens: 246,
-				scopes: ["repo:write"],
-				requires: ["GITHUB_GET_A_PULL_REQUEST"],
-			},
-			{
-				name: "GITHUB_LIST_PULL_REQUEST_FILES",
-				summary: "List files changed in a pull request",
-				params: 5,
-				tokens: 172,
-				scopes: ["repo:read"],
-			},
-			{
-				name: "GITHUB_MERGE_A_PULL_REQUEST",
-				summary: "Merge, squash, or rebase a pull request",
-				params: 6,
-				tokens: 234,
-				scopes: ["repo:write"],
-				requires: ["GITHUB_GET_A_PULL_REQUEST"],
-			},
-		],
+		name: "COMPOSIO_SEARCH_TOOLS",
+		summary:
+			"Ask in plain English. Get the exact app tools + a plan with prerequisites and pitfalls.",
+		req: `{ ask: "how do I open a pull request
+         from a feature branch?" }`,
+		res: (
+			<>
+				<span style={{ color: CX.muted }}>plan for github:</span>
+				<PlanRow tool="GITHUB_GET_A_BRANCH" note="validate refs exist" />
+				<PlanRow
+					tool="GITHUB_COMPARE_TWO_COMMITS"
+					note="confirm head is ahead"
+				/>
+				<PlanRow
+					tool="GITHUB_CREATE_A_PULL_REQUEST"
+					note="open the PR"
+				/>
+				<span style={{ color: CX.muted, fontSize: 10, marginTop: 2 }}>
+					+ 3 more tools · 2 pitfalls attached
+				</span>
+			</>
+		),
 	},
 	{
-		heading: "Reviews",
-		tools: [
-			{
-				name: "GITHUB_LIST_REVIEWS_ON_A_PULL_REQUEST",
-				summary: "List reviews for a pull request",
-				params: 5,
-				tokens: 162,
-				scopes: ["repo:read"],
-			},
-			{
-				name: "GITHUB_CREATE_A_REVIEW",
-				summary: "Post a review — approve, comment, request_changes",
-				params: 6,
-				tokens: 232,
-				scopes: ["repo:write"],
-				requires: ["GITHUB_LIST_PULL_REQUEST_FILES"],
-			},
-			{
-				name: "GITHUB_DISMISS_A_REVIEW",
-				summary: "Dismiss a review with a message",
-				params: 4,
-				tokens: 146,
-				scopes: ["repo:write"],
-			},
-		],
+		name: "COMPOSIO_MANAGE_CONNECTIONS",
+		summary:
+			"Checks connection status for a toolkit and returns a branded auth link when the user needs to connect — covers OAuth, API keys, and every other auth type.",
+		req: `{ toolkit: "github", user_id: "u_42" }`,
+		res: (
+			<>
+				<span>
+					<Kv k="status" v="not_connected" />
+				</span>
+				<span>
+					<Kv k="auth" v="oauth2" />
+				</span>
+				<span>
+					<Kv
+						k="connect_url"
+						v='"https://composio.dev/connect/gh_…"'
+					/>
+				</span>
+			</>
+		),
+	},
+	{
+		name: "COMPOSIO_MULTI_EXECUTE_TOOL",
+		summary:
+			"Executes up to 50 tools in parallel and returns structured outputs ready for immediate analysis.",
+		req: `{ tool_calls: [
+  { name: "SLACK_FETCH_THREAD", args: {…} },
+  { name: "SENTRY_RETRIEVE_ISSUES", args: {…} },
+  { name: "DATADOG_SEARCH_LOGS", args: {…} },
+] }`,
+		res: (
+			<>
+				<span>
+					<span style={{ color: CX.green, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: CX.text }}>3/3 succeeded</span>{" "}
+					<span style={{ color: CX.muted }}>· 412 ms total</span>
+				</span>
+				<span style={{ color: CX.muted }}>
+					results[] returned in call order
+				</span>
+			</>
+		),
+	},
+	{
+		name: "COMPOSIO_REMOTE_BASH_TOOL",
+		summary:
+			"Runs bash commands in a remote sandbox for file operations, data processing, and system tasks.",
+		req: `$ jq '.rows | length' /mnt/files/results.json`,
+		res: (
+			<>
+				<span style={{ color: CX.text }}>1,284</span>
+				<span style={{ color: CX.muted }}>
+					stdout:6 · stderr:0 · sandbox:sh_92j
+				</span>
+			</>
+		),
+	},
+	{
+		name: "COMPOSIO_REMOTE_WORKBENCH",
+		summary:
+			"Runs Python in a persistent remote sandbox to process large remote files and script bulk or repeated tool executions.",
+		req: `import pandas as pd
+df = pd.read_csv('/mnt/files/users.csv')
+top = df.groupby('country').size().nlargest(3)
+print(top.to_dict())`,
+		res: (
+			<>
+				<span style={{ color: CX.text }}>
+					{"{'US': 2412, 'IN': 1183, 'DE': 754}"}
+				</span>
+				<span style={{ color: CX.muted }}>
+					sandbox:py_6i6 · state persists across calls
+				</span>
+			</>
+		),
 	},
 ];
 
 function ComposioToolsCard() {
-	const total = TOOL_SECTIONS.reduce((s, x) => s + x.tools.length, 0);
-	const tokens = TOOL_SECTIONS.reduce(
-		(s, x) => s + x.tools.reduce((t, tool) => t + tool.tokens, 0),
-		0,
+	const search = META_TOOLS.find((t) => t.name === "COMPOSIO_SEARCH_TOOLS")!;
+	const runtime = META_TOOLS.filter(
+		(t) => t.name !== "COMPOSIO_SEARCH_TOOLS",
 	);
-	return (
-		<CardShell borderColor={CX.accentBorder}>
-			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-				<Header
-					icon={
-						<Sparkles
-							size={14}
-							strokeWidth={2.2}
-							style={{ color: CX.accent }}
-						/>
-					}
-					crumbs={["platform.composio.dev", "tools", "github"]}
-					title="Pull requests"
-					accent={CX.accent}
-					borderColor={CX.border}
-					muted={CX.muted}
-					dim={CX.dim}
-					text={CX.text}
-					meta={[
-						{ label: "tools", value: `${total}` },
-						{ label: "context", value: `~${(tokens / 1000).toFixed(1)}k tok` },
-						{ label: "scopes", value: "repo:read · repo:write" },
-						{ label: "runtime", value: "MCP · SDK · direct" },
-					]}
-				/>
-
-				<FilterBar placeholder="Search tools" borderColor={CX.border} dim={CX.dim} />
-
-				<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-					{TOOL_SECTIONS.map((section, i) => (
-						<div key={section.heading}>
-							<SectionHeader
-								borderColor={CX.border}
-								muted={CX.muted}
-								label={section.heading}
-								count={section.tools.length}
-								first={i === 0}
-							/>
-							{section.tools.map((t) => (
-								<ToolRow key={t.name} tool={t} />
-							))}
-						</div>
-					))}
-				</div>
-			</div>
-		</CardShell>
-	);
-}
-
-function ToolRow({ tool }: { tool: Tool }) {
-	const hasMeta =
-		(tool.scopes && tool.scopes.length > 0) ||
-		(tool.requires && tool.requires.length > 0);
 	return (
 		<div
-			className="flex flex-col gap-1.5 px-5 py-2.5"
-			style={{ borderBottom: `1px solid ${CX.border}` }}
+			className="flex flex-col"
+			style={{ width: PANEL_W, height: PANEL_H, gap: 10 }}
 		>
-			<div className="flex items-baseline gap-3">
-				<span
-					className="truncate"
-					style={{
-						fontFamily: MONO,
-						color: CX.text,
-						fontSize: 12,
-						fontWeight: 600,
-						letterSpacing: "-0.01em",
-					}}
-				>
-					{tool.name}
-				</span>
-				<div className="ml-auto flex shrink-0 items-center gap-1.5">
-					<StatChip label={`${tool.params}p`} tone="neutral" />
-					<StatChip label={`${tool.tokens} tok`} tone="accent" />
-				</div>
+			<div style={{ height: 320 }}>
+				<MetaToolTerminal tool={search} expanded />
 			</div>
-			<span
-				className="truncate"
-				style={{
-					color: CX.muted,
-					fontSize: 11,
-					fontFamily: SANS,
-					lineHeight: 1.4,
-				}}
+			<div
+				className="grid grid-cols-2 min-h-0 flex-1"
+				style={{ gap: 10 }}
 			>
-				{tool.summary}
-			</span>
-			{hasMeta ? (
-				<div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-					{tool.scopes?.map((s) => (
-						<MetaChip
-							key={s}
-							kind="scope"
-							label={s}
-						/>
-					))}
-					{tool.requires && tool.requires.length > 0 ? (
-						<MetaChip
-							kind="req"
-							label={`needs ${tool.requires.join(" · ")}`}
-						/>
-					) : null}
-				</div>
-			) : null}
+				{runtime.map((tool) => (
+					<MetaToolTerminal key={tool.name} tool={tool} />
+				))}
+			</div>
 		</div>
 	);
 }
 
-function StatChip({
-	label,
-	tone,
+/* Each meta-tool is its own pi terminal window — same Claude theme as the
+ * demo terminals, no traffic lights, header carries the tool name. The
+ * featured `SEARCH_TOOLS` terminal is taller and renders a fuller plan
+ * (steps + pitfalls + connections) so it reads as the "hero" primitive. */
+function MetaToolTerminal({
+	tool,
+	expanded,
 }: {
-	label: string;
-	tone: "neutral" | "accent";
+	tool: MetaTool;
+	expanded?: boolean;
 }) {
-	const isAccent = tone === "accent";
+	const isSearch = tool.name === "COMPOSIO_SEARCH_TOOLS";
 	return (
-		<span
-			className="shrink-0"
+		<div
+			className="h-full overflow-hidden rounded-lg"
 			style={{
-				background: isAccent ? CX.accentSoft : "rgba(255,255,255,0.03)",
-				color: isAccent ? CX.accent : CX.muted,
-				border: `1px solid ${isAccent ? CX.accentBorder : "rgba(255,255,255,0.08)"}`,
-				borderRadius: 4,
-				fontSize: 9.5,
-				fontFamily: MONO,
-				fontWeight: 700,
-				letterSpacing: "0.04em",
-				padding: "1.5px 6px",
+				boxShadow:
+					"0 18px 32px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.04) inset",
 			}}
 		>
-			{label}
-		</span>
+			<TerminalWindow
+				className="tk-claude-dark h-full [&_.terminal-body-scroll]:!overflow-y-auto"
+				fill
+				path={tool.name}
+				showTrafficLights={false}
+				theme="claude"
+				variant="dark"
+				bodyClassName="pb-2"
+			>
+				<div className="flex flex-col">
+					<div
+						className="px-3 pt-1.5 pb-1"
+						style={{
+							color: CX.muted,
+							fontSize: expanded ? 11.5 : 10,
+							fontFamily: SANS,
+							lineHeight: 1.4,
+						}}
+					>
+						{tool.summary}
+					</div>
+					<ShellRow label="REQ" labelColor="#a1b0c6">
+						<pre
+							style={{
+								margin: 0,
+								fontFamily: MONO,
+								fontSize: expanded ? 11 : 10,
+								color: CX.text,
+								whiteSpace: "pre-wrap",
+							}}
+						>
+							{tool.req}
+						</pre>
+					</ShellRow>
+					<ShellRow label="RES" labelColor={CX.accent} last>
+						<div
+							className="flex flex-col gap-0.5"
+							style={{
+								fontFamily: MONO,
+								fontSize: expanded ? 11 : 10,
+								color: CX.text,
+							}}
+						>
+							{expanded && isSearch ? <SearchExpandedRes /> : tool.res}
+						</div>
+					</ShellRow>
+				</div>
+			</TerminalWindow>
+		</div>
 	);
 }
 
-function MetaChip({
-	kind,
-	label,
-}: {
-	kind: "scope" | "req";
-	label: string;
-}) {
-	const isScope = kind === "scope";
+/* Fuller preview of what COMPOSIO_SEARCH_TOOLS returns — plan steps,
+ * pitfalls, and the connection it will run through. Sold as the "output
+ * shape" for the hero primitive. */
+function SearchExpandedRes() {
 	return (
-		<span
-			className="inline-flex items-center gap-1"
+		<>
+			<span style={{ color: CX.muted }}>plan for github:</span>
+			<PlanStepRow
+				n={1}
+				tool="GITHUB_GET_A_BRANCH"
+				note="validate refs exist"
+			/>
+			<PlanStepRow
+				n={2}
+				tool="GITHUB_COMPARE_TWO_COMMITS"
+				note="confirm head is ahead of base"
+			/>
+			<PlanStepRow
+				n={3}
+				tool="GITHUB_CREATE_A_PULL_REQUEST"
+				note="open the PR"
+			/>
+			<div style={{ color: CX.muted, marginTop: 4 }}>
+				<span style={{ color: "#f5c26f" }}>⚠</span>{" "}
+				CREATE_A_PULL_REQUEST: HTTP 422 if base/head invalid or PR exists
+			</div>
+			<div style={{ color: CX.muted }}>
+				<span style={{ color: "#f5c26f" }}>⚠</span>{" "}
+				GET_A_BRANCH: use owner-qualified head when comparing forks
+			</div>
+			<div style={{ color: CX.muted, marginTop: 4 }}>
+				connections:{" "}
+				<span style={{ color: CX.green }}>●</span>{" "}
+				<span style={{ color: CX.text }}>github</span>{" "}
+				<span style={{ color: CX.muted }}>
+					@composio-github (default)
+				</span>
+			</div>
+		</>
+	);
+}
+
+function PlanStepRow({
+	n,
+	tool,
+	note,
+}: {
+	n: number;
+	tool: string;
+	note: string;
+}) {
+	return (
+		<div className="flex items-baseline gap-2">
+			<span style={{ color: CX.muted, minWidth: 12 }}>{n}.</span>
+			<span
+				style={{
+					color: CX.accent,
+					background: CX.accentSoft,
+					border: `1px solid ${CX.accentBorder}`,
+					borderRadius: 3,
+					padding: "0 5px",
+					fontSize: 10,
+					fontFamily: MONO,
+					fontWeight: 600,
+				}}
+			>
+				{tool}
+			</span>
+			<span style={{ color: CX.muted, fontSize: 10 }}>{note}</span>
+		</div>
+	);
+}
+
+function ShellRow({
+	label,
+	labelColor,
+	last,
+	children,
+}: {
+	label: string;
+	labelColor: string;
+	last?: boolean;
+	children: React.ReactNode;
+}) {
+	return (
+		<div
+			className="flex gap-2 px-3 py-1.5"
 			style={{
-				background: isScope ? CX.greenSoft : "rgba(255,255,255,0.02)",
-				color: isScope ? CX.green : CX.muted,
-				border: `1px solid ${isScope ? CX.greenBorder : "rgba(255,255,255,0.08)"}`,
-				borderRadius: 3,
-				fontSize: 9.5,
-				fontFamily: MONO,
-				padding: "1px 5px",
-				lineHeight: 1.4,
+				borderBottom: last ? undefined : "1px solid rgba(255,255,255,0.04)",
 			}}
 		>
-			<span style={{ opacity: 0.7 }}>{isScope ? "🔒" : "↳"}</span>
-			<span>{label}</span>
+			<span
+				className="shrink-0"
+				style={{
+					color: labelColor,
+					border: `1px solid ${labelColor}55`,
+					borderRadius: 4,
+					fontSize: 8.5,
+					fontFamily: MONO,
+					fontWeight: 700,
+					letterSpacing: "0.14em",
+					padding: "1px 5px",
+					height: "fit-content",
+					lineHeight: 1.4,
+				}}
+			>
+				{label}
+			</span>
+			<div className="min-w-0 flex-1">{children}</div>
+		</div>
+	);
+}
+
+function PlanRow({ tool, note }: { tool: string; note: string }) {
+	return (
+		<div className="flex items-baseline gap-2">
+			<span
+				style={{
+					color: CX.accent,
+					background: CX.accentSoft,
+					border: `1px solid ${CX.accentBorder}`,
+					borderRadius: 3,
+					padding: "0 5px",
+					fontSize: 10,
+					fontFamily: MONO,
+					fontWeight: 600,
+				}}
+			>
+				{tool}
+			</span>
+			<span style={{ color: CX.muted, fontSize: 10 }}>{note}</span>
+		</div>
+	);
+}
+
+function Kv({ k, v }: { k: string; v: string }) {
+	return (
+		<span>
+			<span style={{ color: CX.muted }}>{k}:</span>{" "}
+			<span style={{ color: CX.text }}>{v}</span>
 		</span>
 	);
 }
