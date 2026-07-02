@@ -19,7 +19,7 @@ export function TitleSlide() {
 
 				<div className="font-mono text-[30px] leading-[1.35] text-foreground">
 					<div>Sarah Simionescu</div>
-					<div>UX Engineering Lead, Composio</div>
+					<div>Member of Technical Staff, Composio</div>
 				</div>
 			</div>
 
