@@ -2,7 +2,7 @@
 
 Hello everyone. My name is Sarah, and I have a confession.
 
-So I have been using Datadog every day for the last 6 months, and last week my manager came up to me and asked me to open up Datadog so he could look at an alert. He was sort of looking over my shoulder, and I was feeling overly conscious about what I was doing on my screen. I opened up the Datadog dashboard and just froze. I drew a blank, realized I have no idea where anything is. And this is not a knock on Datadog. The problem was that I had genuinely never opened the dashboard. I had been using Datadog every day without ever looking at it.
+So I have been using Datadog every day for the last 6 months, and last week my coworker came up to me and asked me if he could look at a Datadog alert. He was sort of looking over my shoulder, and I was feeling overly conscious about what I was doing on my screen. I opened up the Datadog dashboard and just froze. I drew a blank, realized I have no idea where anything is. And this is not a knock on Datadog. The problem was that I had genuinely never opened the dashboard. I had been using Datadog every day without ever looking at it.
 
 Today, I want to make an argument that sounds insane and then convince you it's obvious.
 
@@ -19,12 +19,12 @@ Except maybe for me, because my team is responsible for the Composio dashboard.
 Alas, how did we get here? I believe a post-mortem is in order, shall we?
 
 [Slide] Screenshot of this slack message
-The year is 2022, the dark ages. Someone pings me in Slack, this is a real message: "The playground is not working for this user".
+The year is 2022, the dark ages. Someone pings me in Slack, this is a real message: "hey i get an error when i search for '(prod)'".
 
 [Slide] 5 different windows/tabs
 Seeing this message, I would have immediately spawned 5 different windows. Read the context in Slack, write a query in Datadog, check PostHog for the session recording, fix the bug in VSCode, and open the PR in GitHub.
 
-Five tools, five UIs I have to learn and re-learn every time they ship a redesign. But frankly, redesigns are not the biggest problem.
+Five tools, five UIs I have to learn and re-learn every time they ship a redesign. But frankly, redesigns are the least of my worries.
 
 [Slide] All the different query languages across these apps (e.g. Jira, Slack, Linear, Datadog, Sentry, ect.)
 Every single tool has its own query language I need to learn:
@@ -59,7 +59,7 @@ Not quite.
 [Slide] Anthropic announcing MCP
 In November 2024, Anthropic announced the MCP protocol with the promise to create an "open standard for connecting AI systems with data sources," and that it did. Instead of using a sparkle button, your own agent, Claude, whom you already use every day, could generate the query for you, execute it on your behalf, and give you the answer directly.
 
-And you might be thinking, well, problem solved. This is the end of the story, right? Who needs a dashboard when MCP exists? But it is far from it, because, to put it nicely… It's just not that good, yet.
+And you might be thinking, well, problem solved. This is the end of the story, right? Who needs a dashboard when MCP exists? But it is far from it, because MCP is a protocol, a channel of communication between agents and your service, and it's up to you, the app, how you choose to communicate with the agent, and it makes all the difference.
 
 [Slide]
 If you've ever actually wired up a dozen MCP servers, you will know the reality is a mess. Three reasons.
@@ -76,7 +76,7 @@ And third, every app is isolated. Each MCP server knows about itself and nothing
 So MCP gave agents a door into every app. But it left them standing in a thousand separate rooms, no map, and no memory of ever having been there.
 
 [Slide] Live demo for debugging issue reported in Slack
-Let me show you the exact bug report from earlier _"Playground's not working for this user"_ how I solve this in 2026.
+Let me show you the exact bug report from earlier _"hey i get an error when i search for '(prod)'"_ how I solve this in 2026.
 
 I can just copy the link to the message in Slack.
 
@@ -112,6 +112,10 @@ But now we are getting requests from startups, saying their clients are begging 
 The humans are tired of dashboards, their agents are tired of MCP.
 
 This is a lesson for everyone building anything. You are now serving a new species of user. It doens't have eyes. It won't click your sparkle button. It shows up with a goal and a set of tools, and it judges you on exactly one thing whether it can get the job done.
+
+For a decade, we built products to be easy for _people_ to use. The next decade belongs to the ones that are easy for _agents_ to use.
+
+So picture me again: frozen in front of that Datadog dashboard, no idea where anything is. I used to think that was me falling behind. Now I think it was just a preview.
 
 [Slide] AX is the new UX
 
