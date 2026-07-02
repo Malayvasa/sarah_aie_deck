@@ -84,8 +84,48 @@ function SalesforceSoqlBody() {
 						Query
 					</button>
 				</div>
+
+				<ConfusedReaction active={isSlideActive} />
 			</motion.div>
 		</div>
+	);
+}
+
+/** Punchline reaction sticker — pops in after the query has had a beat to land. */
+function ConfusedReaction({ active }: { active: boolean }) {
+	return (
+		<motion.div
+			className="absolute flex flex-col items-center"
+			style={{ right: -30, bottom: -64 }}
+			initial={{ opacity: 0, scale: 0.6, rotate: -8 }}
+			animate={
+				active
+					? { opacity: 1, scale: 1, rotate: -6 }
+					: { opacity: 0, scale: 0.6, rotate: -8 }
+			}
+			transition={{
+				duration: 0.5,
+				delay: 1,
+				ease: [0.34, 1.4, 0.6, 1],
+			}}
+		>
+			{/* eslint-disable-next-line @next/next/no-img-element */}
+			<img
+				src="/memes/what-is-that.webp"
+				alt=""
+				width={140}
+				style={{
+					borderRadius: 8,
+					boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+				}}
+			/>
+			<div
+				className="mt-1.5 font-mono text-foreground"
+				style={{ fontSize: 14, transform: "rotate(2deg)" }}
+			>
+				what is that??
+			</div>
+		</motion.div>
 	);
 }
 

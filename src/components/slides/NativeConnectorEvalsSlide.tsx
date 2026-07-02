@@ -38,7 +38,7 @@ type Comparison = {
 const COMPARISONS: Comparison[] = [
 	{ slug: "slack", app: "Slack", altLabel: "Native MCP + Skills", composio: 86, alt: 36, delta: 50 },
 	{ slug: "datadog", app: "Datadog", altLabel: "Native MCP + Skills", composio: 100, alt: 57, delta: 43 },
-	{ slug: "googledrive", app: "Google Drive", altLabel: "Claude AI", composio: 100, alt: 69, delta: 31 },
+	{ slug: "googledrive", app: "Google Drive", altLabel: "Claude Connector", composio: 100, alt: 69, delta: 31 },
 ];
 
 type FailureKind = "no_capability" | "right_tool_bad_args" | "verifier_rejected" | "timeout";
