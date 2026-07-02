@@ -27,7 +27,7 @@ export function DebugDemoSlide() {
 		<DeckSlide padded={false}>
 			<DebugDemoBody />
 			<Notes>
-				<PresenterNote noteKey="debugDemo" steps={3} />
+				<PresenterNote noteKey="debugDemo" steps={4} />
 			</Notes>
 		</DeckSlide>
 	);
@@ -174,10 +174,11 @@ function Sequence({ children }: { children: React.ReactNode }) {
 }
 
 function DebugDemoBody() {
-	// 3 advances → 4 revealed states (initial + 3 keystrokes). Matches
-	// Sarah's 3 spoken beats in the debugDemo script: Composio Search →
-	// parallel data pull + codebase scan → identify + fix + PR.
-	const { reached, placeholder } = useStepMotion(3);
+	// 4 advances → 5 revealed states (initial + 4 keystrokes). Matches
+	// Sarah's 4 spoken beats in the debugDemo script: Composio Search →
+	// get message from Slack → fetch data from Datadog/Sentry + scan the
+	// codebase → identify + fix + PR.
+	const { reached, placeholder } = useStepMotion(4);
 
 	return (
 		<div className="flex h-full w-full items-center justify-center bg-black">
@@ -195,7 +196,6 @@ function DebugDemoBody() {
 					bodyClassName="pb-3"
 				>
 					<div className="flex flex-col gap-3 px-1 text-[13px]">
-						<Banner />
 						<UserPrompt />
 
 						{/* Beat 1 — Composio Search states the tasks. */}
@@ -212,15 +212,27 @@ function DebugDemoBody() {
 							</Fade>
 						)}
 
-						{/* Beat 2 — Parallel data pull, then scanning the codebase. */}
+						{/* Beat 2 — Get the message from Slack. */}
 						{reached(1) && (
 							<Fade>
 								<Sequence>
 									<AssistantText>
 										I'm converting the Slack permalink timestamp to get the
-										actual message ID, then fetching the thread while
-										simultaneously searching Sentry and Datadog for related
-										information.
+										actual message ID, then fetching the thread to see what
+										the user reported.
+									</AssistantText>
+									<SlackFetchBlock />
+								</Sequence>
+							</Fade>
+						)}
+
+						{/* Beat 3 — Fetch data from Datadog and Sentry, then scan the codebase. */}
+						{reached(2) && (
+							<Fade>
+								<Sequence>
+									<AssistantText>
+										Now searching Sentry and Datadog in parallel for related
+										errors.
 									</AssistantText>
 									<MultiExecuteBlock1 />
 									<AssistantText>
@@ -232,43 +244,13 @@ function DebugDemoBody() {
 										substring match instead. Let me look at what's in the
 										local repo to understand the current implementation.
 									</AssistantText>
-									<ShellUnit
-										latencyMs={220}
-										command={
-											<CodeBlock>{`$ cd ~/GitHub/test-app && ls && git remote -v && git branch --show-current`}</CodeBlock>
-										}
-										response={
-											<CodeBlock>
-												<span
-													style={{ color: "var(--terminal-dim)" }}
-												>
-													… (13 earlier lines, ctrl+o to expand)
-													{"\n"}
-												</span>
-												{`tsconfig.tsbuildinfo
-vitest.config.ts
-origin  https://github.com/ComposioHQ/agentic-snippet-board.git (fetch)
-origin  https://github.com/ComposioHQ/agentic-snippet-board.git (push)
-main`}
-											</CodeBlock>
-										}
-									/>
-									<ShellUnit
-										latencyMs={200}
-										command={
-											<CodeBlock>{`$ grep -rn "new RegExp" src/server | head -30`}</CodeBlock>
-										}
-										response={
-											<CodeBlock>{`src/server/snippets.filter.ts:6:  const re = new RegExp(trimmed, "i");`}</CodeBlock>
-										}
-									/>
 									<ReadUnit path="~/GitHub/test-app/src/server/snippets.filter.ts" />
 								</Sequence>
 							</Fade>
 						)}
 
-						{/* Beat 3 — Identify root cause, fix, commit, PR. */}
-						{reached(2) && (
+						{/* Beat 4 — Identify root cause, fix, commit, PR. */}
+						{reached(3) && (
 							<Fade>
 								<Sequence>
 									<AssistantText>
@@ -512,6 +494,28 @@ function SearchToolsBlock({ onDone }: { onDone?: () => void }) {
 	);
 }
 
+function SlackFetchBlock({ onDone }: { onDone?: () => void }) {
+	return (
+		<ToolCall
+			tool="SLACK_FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION"
+			latencyMs={900}
+			onDone={onDone}
+			query={
+				<CodeBlock>{`{ permalink: "…/p1782959651275229" }`}</CodeBlock>
+			}
+			response={
+				<ResultLine>
+					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						thread parsed ·{" "}
+					</span>
+					<span style={{ color: "var(--terminal-fg)" }}>4 messages</span>
+				</ResultLine>
+			}
+		/>
+	);
+}
+
 function MultiExecuteBlock1({ onDone }: { onDone?: () => void }) {
 	return (
 		<ToolCall
@@ -520,8 +524,6 @@ function MultiExecuteBlock1({ onDone }: { onDone?: () => void }) {
 			onDone={onDone}
 			query={
 				<CodeBlock>{`{ tool_calls: [
-  { name: "SLACK_FETCH_MESSAGE_THREAD_FROM_A_CONVERSATION",
-    args: { permalink: "…/p1782959651275229" } },
   { name: "SENTRY_RETRIEVE_PROJECT_ISSUES_LIST",
     args: { org: "composio", project: "sarah-demo",
             query: "is:unresolved" } },
@@ -533,9 +535,9 @@ function MultiExecuteBlock1({ onDone }: { onDone?: () => void }) {
 			response={
 				<ResultLine>
 					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
-					<span style={{ color: "var(--terminal-fg)" }}>3/3</span>{" "}
+					<span style={{ color: "var(--terminal-fg)" }}>2/2</span>{" "}
 					<span style={{ color: "var(--terminal-dim)" }}>
-						· thread parsed · 1 sentry issue{" "}
+						· 1 sentry issue{" "}
 					</span>
 					<Mono>SARAH-DEMO-1</Mono>{" "}
 					<span style={{ color: "var(--terminal-dim)" }}>
@@ -685,37 +687,6 @@ function TerminalInput() {
 			</div>
 		</div>
 	);
-}
-
-function Banner() {
-	return (
-		<div className="flex flex-col gap-0.5 leading-[1.35]">
-			<div>
-				<span style={{ color: "var(--terminal-teal)", fontWeight: 700 }}>
-					pi
-				</span>{" "}
-				<span style={{ color: "var(--terminal-dim)" }}>v0.74.2</span>
-			</div>
-			<div style={{ color: "var(--terminal-dim)" }}>
-				<Kbd>escape</Kbd> interrupt · <Kbd>ctrl+c/ctrl+d</Kbd> clear/exit ·{" "}
-				<Kbd>/</Kbd> commands · <Kbd>!</Kbd> bash · <Kbd>ctrl+o</Kbd> more
-			</div>
-			<div style={{ color: "var(--terminal-dim)" }}>
-				Press ctrl+o to show full startup help and loaded resources.
-			</div>
-			<div style={{ color: "var(--terminal-dim)" }}>
-				Pi can explain its own features and look up its docs. Ask it how to
-				use or extend Pi.
-			</div>
-			<div className="mt-2" style={{ color: "var(--terminal-dim)" }}>
-				Navigated to selected point
-			</div>
-		</div>
-	);
-}
-
-function Kbd({ children }: { children: React.ReactNode }) {
-	return <span style={{ color: "var(--terminal-fg)" }}>{children}</span>;
 }
 
 function UserPrompt() {

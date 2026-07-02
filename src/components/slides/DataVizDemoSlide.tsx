@@ -13,7 +13,7 @@ import { TerminalWindow } from "~/components/terminal-kit";
  * Slide 20 — the data-viz demo. Same terminal shell as the debug demo,
  * streaming a two-question `pi` agent trace: first a PostHog query for
  * onboarding vertical %s, then a follow-up that joins those users against
- * Metabase tool_execution_logs to find their most-used toolkits. Reuses the
+ * Metabase logs to find their most-used toolkits. Reuses the
  * Stream / Sequence / Fade infrastructure defined in DebugDemoSlide.
  *
  * Trace source: docs/pi-dataviz-trace (RTF export from Sarah).
@@ -196,7 +196,6 @@ function DataVizDemoBody() {
 					bodyClassName="pb-3"
 				>
 					<div className="flex flex-col gap-3 px-1 text-[13px]">
-						<Banner />
 						<UserPrompt>
 							give me the percentages of the "vertical" users selected during
 							onboarding this week (only percentages no counts)
@@ -229,9 +228,8 @@ function DataVizDemoBody() {
 									<AssistantText>Navigated to selected point</AssistantText>
 									<UserPrompt>
 										for the users that selected Ecommerce, what were their
-										most commonly used toolkits? (use metabase logs table,
-										user id formatted you can match on
-										consumer-*-&lt;userid&gt; via metabase via composio
+										most commonly used toolkits? (use the metabase logs
+										table)
 									</UserPrompt>
 									<AssistantText>thinking...</AssistantText>
 									<MetabaseSearchBlock />
@@ -261,31 +259,20 @@ function DataVizDemoBody() {
 							</Fade>
 						)}
 
-						{/* Beat 6 — Composio Sandbox writes + iterates on the SQL. */}
+						{/* Beat 6 — Composio Sandbox writes and executes the SQL. */}
 						{reached(5) && (
 							<Fade>
 								<Sequence>
 									<AssistantText>thinking...</AssistantText>
-									<Workbench1 />
-									<MetabaseDatasetBlock1 />
-									<AssistantText>thinking...</AssistantText>
-									<Workbench2 />
-									<Workbench3 />
-									<AssistantText>thinking...</AssistantText>
-									<BashCatSql />
-									<AssistantText>thinking...</AssistantText>
-									<Workbench4 />
+									<WorkbenchFinal />
 								</Sequence>
 							</Fade>
 						)}
 
-						{/* Beat 7 — BAM: final execute + extract + toolkit result. */}
+						{/* Beat 7 — BAM: toolkit result. */}
 						{reached(6) && (
 							<Fade>
 								<Sequence>
-									<AssistantText>thinking...</AssistantText>
-									<MetabaseDatasetBlock2 />
-									<BashJq />
 									<AssistantText>thinking...</AssistantText>
 									<ToolkitTableResult />
 								</Sequence>
@@ -562,37 +549,6 @@ function TerminalInput() {
 			</div>
 		</div>
 	);
-}
-
-function Banner() {
-	return (
-		<div className="flex flex-col gap-0.5 leading-[1.35]">
-			<div>
-				<span style={{ color: "var(--terminal-teal)", fontWeight: 700 }}>
-					pi
-				</span>{" "}
-				<span style={{ color: "var(--terminal-dim)" }}>v0.74.2</span>
-			</div>
-			<div style={{ color: "var(--terminal-dim)" }}>
-				<Kbd>escape</Kbd> interrupt · <Kbd>ctrl+c/ctrl+d</Kbd> clear/exit ·{" "}
-				<Kbd>/</Kbd> commands · <Kbd>!</Kbd> bash · <Kbd>ctrl+o</Kbd> more
-			</div>
-			<div style={{ color: "var(--terminal-dim)" }}>
-				Press ctrl+o to show full startup help and loaded resources.
-			</div>
-			<div style={{ color: "var(--terminal-dim)" }}>
-				Pi can explain its own features and look up its docs. Ask it how to
-				use or extend Pi.
-			</div>
-			<div className="mt-2" style={{ color: "var(--terminal-dim)" }}>
-				Navigated to selected point
-			</div>
-		</div>
-	);
-}
-
-function Kbd({ children }: { children: React.ReactNode }) {
-	return <span style={{ color: "var(--terminal-fg)" }}>{children}</span>;
 }
 
 function UserPrompt({ children }: { children: React.ReactNode }) {
@@ -1184,7 +1140,7 @@ function MetabaseDiscoveryBlock({ onDone }: { onDone?: () => void }) {
 			query={
 				<CodeBlock>{`{ tool_calls: [
   { name: "METABASE_GET_API_SEARCH",
-    args: { q: "tool_execution_logs" } },
+    args: { q: "logs" } },
   { name: "METABASE_LIST_DATABASES", args: {} },
 ] }`}</CodeBlock>
 			}
@@ -1215,7 +1171,7 @@ function MetabaseSchemaBlock({ onDone }: { onDone?: () => void }) {
 			query={
 				<CodeBlock>{`{ tool_calls: [
   { name: "METABASE_GET_TABLE_SCHEMA",
-    args: { database: 232, table: "tool_execution_logs" } },
+    args: { database: 232, table: "logs" } },
 ] }`}</CodeBlock>
 			}
 			response={
@@ -1258,17 +1214,23 @@ function WorkbenchPanel({
 	);
 }
 
-function Workbench1({ onDone }: { onDone?: () => void }) {
+/* Single consolidated sandbox step — builds the SQL from the saved user ids
+ * and executes it against Metabase in one call. Collapses what was
+ * originally several retry/debug round-trips (a length-limit error, a
+ * file-write workaround, a raw bash cat + jq extraction) into the one call
+ * that actually matters for the story. */
+function WorkbenchFinal({ onDone }: { onDone?: () => void }) {
 	return (
 		<WorkbenchPanel
 			onDone={onDone}
-			latencyMs={800}
+			latencyMs={900}
 			response={
 				<ResultLine>
 					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
-					<span style={{ color: "var(--terminal-dim)" }}>stdout</span>{" "}
-					<Mono>459 [a16b9f3b…, 3c3ad13b…, 607dfd3b…]</Mono>{" "}
-					<span style={{ color: "var(--terminal-dim)" }}>· len(sql) = 8,412</span>
+					<span style={{ color: "var(--terminal-fg)" }}>39 rows</span>{" "}
+					<span style={{ color: "var(--terminal-dim)" }}>
+						· 8,682 executions matched
+					</span>
 				</ResultLine>
 			}
 		>
@@ -1310,30 +1272,6 @@ function Workbench1({ onDone }: { onDone?: () => void }) {
 			</Code>
 			<Code>
 				{[
-					{ t: "print", c: COL_BUILTIN },
-					"(",
-					{ t: "len", c: COL_BUILTIN },
-					"(users), users[:",
-					{ t: "3", c: COL_NUM },
-					"])",
-				]}
-			</Code>
-			<Code>
-				{[
-					{
-						t: "# Build regex-style OR filter: entityId LIKE 'consumer-%-<uid>' for each",
-						c: "#5E8A43",
-					},
-				]}
-			</Code>
-			<Code>
-				{[
-					{ t: "import", c: COL_KEY },
-					" re",
-				]}
-			</Code>
-			<Code>
-				{[
 					"uids_pattern = ",
 					{ t: '"|"', c: COL_STR },
 					".join(users)",
@@ -1342,70 +1280,6 @@ function Workbench1({ onDone }: { onDone?: () => void }) {
 			<Code>
 				{[
 					"sql = ",
-					{ t: 'f"""', c: COL_STR },
-				]}
-			</Code>
-			<Code>{["SELECT provider, count() AS c"]}</Code>
-			<Code>{["FROM logs"]}</Code>
-			<Code>{["WHERE startTime >= now() - INTERVAL 7 DAY"]}</Code>
-			<Code>
-				{[
-					"  AND match(entityId, '^consumer-[^-]+-(",
-					{ t: "{uids_pattern}", c: COL_STR },
-					")$')",
-				]}
-			</Code>
-			<Code>{["GROUP BY provider"]}</Code>
-			<Code>{["ORDER BY c DESC"]}</Code>
-			<Code>{['LIMIT 50 """']}</Code>
-		</WorkbenchPanel>
-	);
-}
-
-function MetabaseDatasetBlock1({ onDone }: { onDone?: () => void }) {
-	return (
-		<ToolCall
-			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
-			latencyMs={900}
-			onDone={onDone}
-			query={
-				<CodeBlock>{`{ tool_calls: [
-  { name: "METABASE_POST_API_DATASET",
-    args: { database: 232, type: "native",
-            native: { query: "SELECT provider, count() AS c
-                              FROM logs WHERE match(entityId, …) …" } } },
-] }`}</CodeBlock>
-			}
-			response={
-				<ResultLine>
-					<span style={{ color: COL_REQ, fontWeight: 700 }}>✕</span>{" "}
-					<span style={{ color: COL_REQ }}>HTTP 400</span>{" "}
-					<span style={{ color: "var(--terminal-dim)" }}>
-						· "query.native.query" is too long — pass via file
-					</span>
-				</ResultLine>
-			}
-		/>
-	);
-}
-
-function Workbench2({ onDone }: { onDone?: () => void }) {
-	return (
-		<WorkbenchPanel
-			onDone={onDone}
-			latencyMs={500}
-			response={
-				<ResultLine>
-					<span style={{ color: "var(--terminal-fg)" }}>err = None</span>{" "}
-					<span style={{ color: "var(--terminal-dim)" }}>
-						· d.keys() = ["response", "data", "cache_hit"] · rows = None
-					</span>
-				</ResultLine>
-			}
-		>
-			<Code>
-				{[
-					"sql = ",
 					{ t: 'f"""SELECT provider, count() AS c', c: COL_STR },
 				]}
 			</Code>
@@ -1413,16 +1287,16 @@ function Workbench2({ onDone }: { onDone?: () => void }) {
 			<Code>{["WHERE startTime >= now() - INTERVAL 7 DAY"]}</Code>
 			<Code>
 				{[
-					"  AND match(entityId, '^consumer-(",
+					"  AND match(entityId, '^(",
 					{ t: "{uids_pattern}", c: COL_STR },
 					")-')",
 				]}
 			</Code>
-			<Code>{["GROUP BY provider"]}</Code>
+			<Code>{["GROUP BY provider ORDER BY c DESC"]}</Code>
 			<Code>{['LIMIT 100 """']}</Code>
 			<Code>
 				{[
-					'result, err = run_composio_tool("METABASE_POST_API_DATASET", {"database": ',
+					'result = run_composio_tool("METABASE_POST_API_DATASET", {"database": ',
 					{ t: "232", c: COL_NUM },
 					', "type": "native", "native": {"query": sql}})',
 				]}
@@ -1430,287 +1304,14 @@ function Workbench2({ onDone }: { onDone?: () => void }) {
 			<Code>
 				{[
 					{ t: "print", c: COL_BUILTIN },
-					"(err)",
-				]}
-			</Code>
-			<Code>
-				{[
-					"d = result.get(",
+					"(result[",
 					{ t: '"data"', c: COL_STR },
-					", {})",
-				]}
-			</Code>
-			<Code>
-				{[
-					{ t: "print", c: COL_BUILTIN },
-					"(",
-					{ t: "list", c: COL_BUILTIN },
-					"(d.keys())[:",
-					{ t: "20", c: COL_NUM },
+					"][",
+					{ t: '"rows"', c: COL_STR },
 					"])",
 				]}
 			</Code>
-			<Code>
-				{[
-					"rows = d.get(",
-					{ t: '"data"', c: COL_STR },
-					",{}).get(",
-					{ t: '"rows"', c: COL_STR },
-					")",
-				]}
-			</Code>
-			<Code>
-				{[
-					{ t: "print", c: COL_BUILTIN },
-					"(rows)",
-				]}
-			</Code>
 		</WorkbenchPanel>
-	);
-}
-
-function Workbench3({ onDone }: { onDone?: () => void }) {
-	return (
-		<WorkbenchPanel
-			onDone={onDone}
-			latencyMs={450}
-			response={
-				<ResultLine>
-					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
-					<span style={{ color: "var(--terminal-fg)" }}>len(sql) = 8,412</span>{" "}
-					<span style={{ color: "var(--terminal-dim)" }}>
-						· wrote →{" "}
-					</span>
-					<Mono>/mnt/files/mex/sql.txt</Mono>
-				</ResultLine>
-			}
-		>
-			<Code>
-				{[
-					"sql = ",
-					{ t: 'f"""SELECT provider, count() AS c', c: COL_STR },
-					" FROM logs WHERE startTime >= now() - INTERVAL 7 DAY AND match(entityId, '^consumer-(",
-					{ t: "{uids_pattern}", c: COL_STR },
-					')-\') GROUP BY provider LIMIT 100"""',
-				]}
-			</Code>
-			<Code>
-				{[
-					{ t: "with", c: COL_KEY },
-					" ",
-					{ t: "open", c: COL_BUILTIN },
-					"(",
-					{ t: "'/mnt/files/mex/sql.txt'", c: COL_STR },
-					",",
-					{ t: "'w'", c: COL_STR },
-					") ",
-					{ t: "as", c: COL_KEY },
-					" f: f.write(sql)",
-				]}
-			</Code>
-			<Code>
-				{[
-					{ t: "print", c: COL_BUILTIN },
-					"(",
-					{ t: "len", c: COL_BUILTIN },
-					"(sql))",
-				]}
-			</Code>
-		</WorkbenchPanel>
-	);
-}
-
-function BashPanel({
-	command,
-	response,
-	latencyMs = 500,
-	onDone,
-}: {
-	command: React.ReactNode;
-	response: React.ReactNode;
-	latencyMs?: number;
-	onDone?: () => void;
-}) {
-	return (
-		<ToolCall
-			tool="COMPOSIO_REMOTE_BASH"
-			latencyMs={latencyMs}
-			onDone={onDone}
-			query={command}
-			response={response}
-		/>
-	);
-}
-
-function BashCatSql({ onDone }: { onDone?: () => void }) {
-	return (
-		<BashPanel
-			onDone={onDone}
-			latencyMs={350}
-			command={<Code>{["$ cat /mnt/files/mex/sql.txt"]}</Code>}
-			response={
-				<div
-					className="flex flex-col gap-0.5"
-					style={{ color: "var(--terminal-dim)" }}
-				>
-					<Code>{["SELECT provider, count() AS c"]}</Code>
-					<Code>{["FROM app_db.tool_execution_logs"]}</Code>
-					<Code>{["WHERE startTime >= now() - INTERVAL 7 DAY"]}</Code>
-					<Code>
-						{[
-							"  AND match(entityId, '^consumer-(a16b9f3b-…-4f9bc|3c3ad13b-…-39d0|607dfd3b-…-e70b|",
-						]}
-					</Code>
-					<Code>
-						{["    …459 UIDs joined with '|', truncated for display… )-')"]}
-					</Code>
-					<Code>{["GROUP BY provider ORDER BY c DESC LIMIT 100"]}</Code>
-					<div className="mt-1" style={{ color: "var(--terminal-dim)" }}>
-						stdout:7 &nbsp;stderr:0
-					</div>
-				</div>
-			}
-		/>
-	);
-}
-
-function Workbench4({ onDone }: { onDone?: () => void }) {
-	return (
-		<WorkbenchPanel
-			onDone={onDone}
-			latencyMs={700}
-			response={
-				<ResultLine>
-					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
-					<span style={{ color: "var(--terminal-fg)" }}>
-						ERR: OK · d.keys() = [response, data]
-					</span>
-				</ResultLine>
-			}
-		>
-			<Code>
-				{[
-					"sql = ",
-					{ t: "open", c: COL_BUILTIN },
-					"(",
-					{ t: "'/mnt/files/mex/sql.txt'", c: COL_STR },
-					").read()",
-				]}
-			</Code>
-			<Code>
-				{[
-					'result, err = run_composio_tool("METABASE_POST_API_DATASET", {"database": ',
-					{ t: "232", c: COL_NUM },
-					', "type": "native", "native": {"query": sql}})',
-				]}
-			</Code>
-			<Code>
-				{[
-					{ t: "print", c: COL_BUILTIN },
-					'("ERR:", err[:',
-					{ t: "500", c: COL_NUM },
-					"] ",
-					{ t: "if", c: COL_KEY },
-					" err ",
-					{ t: "else", c: COL_KEY },
-					' "OK")',
-				]}
-			</Code>
-			<Code>
-				{[
-					"d = result.get(",
-					{ t: '"data"', c: COL_STR },
-					", {})",
-				]}
-			</Code>
-			<Code>
-				{[
-					"rows = d.get(",
-					{ t: '"data"', c: COL_STR },
-					",{}).get(",
-					{ t: '"rows"', c: COL_STR },
-					")",
-				]}
-			</Code>
-			<Code>
-				{[
-					{ t: "print", c: COL_BUILTIN },
-					"(rows)",
-				]}
-			</Code>
-		</WorkbenchPanel>
-	);
-}
-
-function MetabaseDatasetBlock2({ onDone }: { onDone?: () => void }) {
-	return (
-		<ToolCall
-			tool="COMPOSIO_MULTI_EXECUTE_TOOL"
-			latencyMs={1200}
-			onDone={onDone}
-			query={
-				<CodeBlock>{`{ tool_calls: [
-  { name: "METABASE_POST_API_DATASET",
-    args: { database: 232, type: "native",
-            native: { query: <sql.txt, 8.4 KB> } } },
-] }`}</CodeBlock>
-			}
-			response={
-				<ResultLine>
-					<span style={{ color: COL_ADD, fontWeight: 700 }}>✓</span>{" "}
-					<span style={{ color: "var(--terminal-fg)" }}>39 rows</span>{" "}
-					<span style={{ color: "var(--terminal-dim)" }}>· ⇘ saved →{" "}</span>
-					<Mono>/mnt/files/mex/fast.json</Mono>
-				</ResultLine>
-			}
-		/>
-	);
-}
-
-function BashJq({ onDone }: { onDone?: () => void }) {
-	const rows: [string, number][] = [
-		["outlook", 2464],
-		["composio", 1279],
-		["googledrive", 1009],
-		["gmail", 1007],
-		["instagram", 984],
-		["googlesheets", 883],
-		["facebook", 173],
-		["trello", 149],
-		["airtable", 84],
-		["zoho_desk", 77],
-		["composio_search", 74],
-		["google_analytics", 64],
-		["googleads", 57],
-		["shopify", 45],
-		["gemini", 44],
-		["googlecalendar", 40],
-	];
-	return (
-		<BashPanel
-			onDone={onDone}
-			latencyMs={400}
-			command={
-				<Code>
-					{[
-						"$ jq -r '.results[0].response.data.data.rows[] | @tsv' /mnt/files/mex/fast.json",
-					]}
-				</Code>
-			}
-			response={
-				<div
-					className="flex flex-col"
-					style={{ color: "var(--terminal-dim)" }}
-				>
-					{rows.map(([name, count]) => (
-						<Code key={name}>{[`${name}\t${count}`]}</Code>
-					))}
-					<div className="mt-1" style={{ color: "var(--terminal-dim)" }}>
-						stdout:39 &nbsp;stderr:0
-					</div>
-				</div>
-			}
-		/>
 	);
 }
 
@@ -1739,7 +1340,7 @@ function ToolkitTableResult({ onDone }: { onDone?: () => void }) {
 				<div>
 					Most-used toolkits by the 459 ecommerce-vertical users (last 7 days,
 					from <Mono>logs</Mono> matched via{" "}
-					<Mono>entityId LIKE 'consumer-&lt;uid&gt;-…'</Mono>). Total
+					<Mono>entityId LIKE '&lt;uid&gt;-…'</Mono>). Total
 					executions matched: <b>8,682</b>.
 				</div>
 				<div

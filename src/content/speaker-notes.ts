@@ -170,12 +170,17 @@ Composio returns the correct tools it needs with a plan on how to use them — f
 			},
 			{
 				atStep: 2,
-				section: "18 · Beat 2 · Parallel data pull",
-				script: `Now, armed with all the context it needs, Claude begins pulling from data sources in parallel — Datadog, Sentry, Posthog, and scanning the codebase.`,
+				section: "18 · Beat 2 · Get the message from Slack",
+				script: `Now, armed with the context it needs, it has a plan. It starts by pulling the message from Slack to see what the user's complaint was,`,
 			},
 			{
 				atStep: 3,
-				section: "18 · Beat 3 · Fix + PR",
+				section: "18 · Beat 3 · Fetch data from Datadog and Sentry",
+				script: `then begins pulling from data sources in parallel: that's Datadog and Sentry, and then begins scanning the codebase.`,
+			},
+			{
+				atStep: 4,
+				section: "18 · Beat 4 · Fix + PR",
 				script: `Then, once it identifies the root cause, it creates a PR with the fix in **less than 5 minutes**.
 
 I did not have to build a workflow or write a skill to teach it how to do this. This is literally just Claude using Composio's MCP.
