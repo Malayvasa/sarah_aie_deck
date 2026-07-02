@@ -120,7 +120,7 @@ function Legend() {
 				Composio
 			</span>
 			<span className="flex items-center gap-1.5 text-mono-xs text-muted-foreground">
-				<span className="size-2.5 rounded-[2px]" style={{ background: "#f97316" }} />
+				<span className="size-2.5 rounded-[2px]" style={{ background: "#FF8C42" }} />
 				Native MCP + Skills
 			</span>
 		</div>
@@ -162,7 +162,7 @@ function ChartGroup({
 			animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
 			transition={{ duration: 0.4, ease: [0.34, 1.12, 0.6, 1], delay: groupDelay }}
 		>
-			<span className="rounded-full bg-success/15 px-2.5 py-1 text-mono-xs text-success">
+			<span className="rounded-full bg-success/15 px-4 py-1.5 font-mono text-[28px] font-bold text-success">
 				+{c.delta}
 			</span>
 
@@ -232,7 +232,7 @@ function ChartBar({
 				className={
 					tone === "brand" ? "w-full rounded-t-sm bg-brand" : "w-full rounded-t-sm"
 				}
-				style={tone === "alt" ? { background: "#f97316" } : undefined}
+				style={tone === "alt" ? { background: "#FF8C42" } : undefined}
 				initial={{ height: 0 }}
 				animate={{ height: active ? `${pct}%` : 0 }}
 				transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay }}
