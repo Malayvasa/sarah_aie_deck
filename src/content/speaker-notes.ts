@@ -142,7 +142,9 @@ So what I did here is I just copied and pasted the link to the message from Slac
 
 The first thing it does is it calls the **Composio Search** tool to state the task it wants to accomplish — in this case it states three: it wants to fetch Slack messages, search Sentry issues, and search Datadog logs. Composio returns the correct tools it needs with a plan on how to use them — for example, for Slack it recommends the agent should first find the channel ID it's trying to pull from before it attempts to pull the message.
 
-Now, armed with all the context it needs, Claude begins pulling from data sources in parallel — Datadog, Sentry, Posthog, and scanning the codebase.
+Now, armed with the context it needs, it has a plan. It starts by pulling the message from Slack to see what the user's complaint was,
+
+then begins pulling from data sources in parallel: that's Datadog and Sentry, and then begins scanning the codebase.
 
 Then, once it identifies the root cause, it creates a PR with the fix in **less than 5 minutes**.
 
